@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Razorpay — Checkout Agent</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #161922;
+    --border: #262b38;
+    --text: #e6e8ee;
+    --muted: #8b91a3;
+    --accent: #ff8a3d;
+    --success: #3ddc84;
+    --fail: #ff5c5c;
+    --bubble-agent: #1d212c;
+    --bubble-user: #2a3346;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+  }
+  .layout { display: flex; width: 100%; height: 100%; }
+  .chat-panel {
+    flex: 65%;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+    min-width: 0;
+  }
+  .audit-panel {
+    flex: 35%;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+  }
+  header .sub { color: var(--muted); font-weight: 400; font-size: 12px; margin-top: 2px; }
+  .messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .bubble {
+    max-width: 75%;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 14px;
+    line-height: 1.4;
+    white-space: pre-wrap;
+  }
+  .bubble.agent { background: var(--bubble-agent); align-self: flex-start; border: 1px solid var(--border); }
+  .bubble.user { background: var(--bubble-user); align-self: flex-end; }
+  .bubble.typing { color: var(--muted); font-style: italic; }
+  .gate-card, .failure-card {
+    align-self: stretch;
+    border: 1px solid var(--accent);
+    background: #221a12;
+    border-radius: 10px;
+    padding: 14px;
+    font-size: 14px;
+  }
+  .failure-card { border-color: var(--fail); background: #1f1414; }
+  .gate-card .label, .failure-card .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--accent);
+    margin-bottom: 6px;
+  }
+  .failure-card .label { color: var(--fail); }
+  .gate-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .gate-actions button {
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: none;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .btn-confirm { background: var(--accent); color: #1a1200; font-weight: 600; }
+  .btn-cancel { background: transparent; color: var(--muted); border: 1px solid var(--border) !important; }
+  .cart-strip {
+    border-top: 1px solid var(--border);
+    padding: 10px 16px;
+    font-size: 13px;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+  }
+  .input-row {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+  }
+  .input-row input {
+    flex: 1;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  .input-row button {
+    background: var(--accent);
+    color: #1a1200;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .input-row input:disabled, .input-row button:disabled { opacity: 0.5; cursor: not-allowed; }
+  .audit-list { flex: 1; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+  .audit-row {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px;
+    font-size: 12px;
+  }
+  .audit-row .top { display: flex; justify-content: space-between; margin-bottom: 4px; }
+  .audit-row .action { font-weight: 600; }
+  .audit-row .time { color: var(--muted); }
+  .audit-row .reasoning { color: var(--muted); }
+  .outcome { font-size: 11px; padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
+  .outcome.success { background: rgba(61,220,132,0.15); color: var(--success); }
+  .outcome.failed { background: rgba(255,92,92,0.15); color: var(--fail); }
+  .outcome.rejected { background: rgba(255,138,61,0.15); color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="layout">
+  <div class="chat-panel">
+    <header>
+      Razorpay — Checkout Agent
+      <div class="sub">Chat to browse and buy. Every action below is logged on the right.</div>
+    </header>
+    <div class="messages" id="messages"></div>
+    <div class="cart-strip" id="cartStrip">Cart: empty</div>
+    <div class="input-row">
+      <input id="input" type="text" placeholder="Type a message…" autocomplete="off">
+      <button id="sendBtn">Send</button>
+    </div>
+  </div>
+  <div class="audit-panel">
+    <header>
+      Audit Trail
+      <div class="sub">Read-only. Updates live as actions occur.</div>
+    </header>
+    <div class="audit-list" id="auditList"></div>
+  </div>
+</div>
+
+<script>
+const sessionId = "sess_" + Math.random().toString(36).slice(2, 10);
+const messagesEl = document.getElementById("messages");
+const cartStripEl = document.getElementById("cartStrip");
+const inputEl = document.getElementById("input");
+const sendBtn = document.getElementById("sendBtn");
+
+function addBubble(text, who) {
+  const el = document.createElement("div");
+  el.className = "bubble " + who;
+  el.textContent = text;
+  messagesEl.appendChild(el);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+  return el;
+}
+
+function addGateCard(pending) {
+  const wrap = document.createElement("div");
+  wrap.className = "gate-card";
+  const items = pending.items.map(i => `${i.name} x${i.qty}`).join(", ");
+  wrap.innerHTML = `
+    <div class="label">Confirmation required</div>
+    <div>${items}</div>
+    <div><strong>Total: ₹${pending.total_inr}</strong></div>
+    <div>Action: creating a payment link for ₹${pending.total_inr}</div>
+    <div class="gate-actions">
+      <button class="btn-confirm">Confirm</button>
+      <button class="btn-cancel">Cancel</button>
+    </div>
+  `;
+  wrap.querySelector(".btn-confirm").onclick = () => sendMessage("confirm");
+  wrap.querySelector(".btn-cancel").onclick = () => sendMessage("cancel");
+  messagesEl.appendChild(wrap);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function setInputEnabled(enabled) {
+  inputEl.disabled = !enabled;
+  sendBtn.disabled = !enabled;
+}
+
+function updateCartStrip(uiState) {
+  if (!uiState || !uiState.cart || uiState.cart.length === 0) {
+    cartStripEl.textContent = "Cart: empty";
+    return;
+  }
+  const desc = uiState.cart.map(i => `${i.name} x${i.qty}`).join(", ");
+  cartStripEl.textContent = `Cart: ${desc} — ₹${uiState.total_inr}`;
+}
+
+async function sendMessage(text) {
+  if (!text.trim()) return;
+  addBubble(text, "user");
+  inputEl.value = "";
+  setInputEnabled(false);
+  const typingEl = addBubble("Thinking…", "agent typing");
+
+  try {
+    const res = await fetch("/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: sessionId, message: text }),
+    });
+    typingEl.remove();
+
+    if (!res.ok) {
+      const wrap = document.createElement("div");
+      wrap.className = "failure-card";
+      wrap.innerHTML = `<div class="label">Something went wrong</div><div>Please try again in a moment.</div>`;
+      messagesEl.appendChild(wrap);
+      return;
+    }
+
+    const data = await res.json();
+    if (data.reply_text) addBubble(data.reply_text, "agent");
+    if (data.pending_confirmation) addGateCard(data.pending_confirmation);
+    updateCartStrip(data.ui_state);
+  } catch (e) {
+    typingEl.remove();
+    addBubble("Connection issue — please try again.", "agent");
+  } finally {
+    setInputEnabled(true);
+    inputEl.focus();
+  }
+}
+
+sendBtn.addEventListener("click", () => sendMessage(inputEl.value));
+inputEl.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") sendMessage(inputEl.value);
+});
+
+function outcomeClass(outcome) {
+  if (outcome === "success" || outcome === "paid") return "success";
+  if (outcome === "rejected") return "rejected";
+  return "failed";
+}
+
+async function pollAudit() {
+  try {
+    const res = await fetch("/audit");
+    const rows = await res.json();
+    const listEl = document.getElementById("auditList");
+    listEl.innerHTML = rows.map(r => `
+      <div class="audit-row">
+        <div class="top">
+          <span class="action">${r.action}</span>
+          <span class="outcome ${outcomeClass(r.outcome)}">${r.outcome}</span>
+        </div>
+        <div class="reasoning">${r.reasoning || ""}</div>
+        <div class="time">${new Date(r.timestamp).toLocaleTimeString()}</div>
+      </div>
+    `).join("");
+  } catch (e) { /* transient — retry on next poll */ }
+}
+
+pollAudit();
+setInterval(pollAudit, 3000);
+
+addBubble("Hi — I'm the Razorpay Agent checkout assistant. Tell me what you're looking for, or ask to see the catalog.", "agent");
+</script>
+</body>
+</html>

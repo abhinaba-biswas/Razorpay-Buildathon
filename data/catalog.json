@@ -1,0 +1,86 @@
+{
+  "merchant": "Nimbus Gear",
+  "currency": "INR",
+  "items": [
+    {
+      "id": "sku_001",
+      "name": "USB-C Charging Cable (1m)",
+      "description": "Braided USB-C to USB-C cable, 60W fast charging.",
+      "price_inr": 349,
+      "stock": 40,
+      "category": "accessories"
+    },
+    {
+      "id": "sku_002",
+      "name": "Phone Stand",
+      "description": "Adjustable aluminium desk stand for phones and small tablets.",
+      "price_inr": 499,
+      "stock": 25,
+      "category": "accessories"
+    },
+    {
+      "id": "sku_003",
+      "name": "Wireless Mouse",
+      "description": "2.4GHz wireless mouse with silent clicks.",
+      "price_inr": 899,
+      "stock": 30,
+      "category": "electronics"
+    },
+    {
+      "id": "sku_004",
+      "name": "Laptop Sleeve 14-inch",
+      "description": "Padded neoprene sleeve, water-resistant exterior.",
+      "price_inr": 1299,
+      "stock": 20,
+      "category": "accessories"
+    },
+    {
+      "id": "sku_005",
+      "name": "Desk Lamp",
+      "description": "Dimmable LED desk lamp with USB port.",
+      "price_inr": 1599,
+      "stock": 15,
+      "category": "electronics"
+    },
+    {
+      "id": "sku_006",
+      "name": "Power Bank 10000mAh",
+      "description": "Compact power bank with USB-C PD fast charging.",
+      "price_inr": 1799,
+      "stock": 18,
+      "category": "electronics"
+    },
+    {
+      "id": "sku_007",
+      "name": "Bluetooth Speaker",
+      "description": "Portable speaker, 10-hour battery life.",
+      "price_inr": 1899,
+      "stock": 12,
+      "category": "electronics"
+    },
+    {
+      "id": "sku_008",
+      "name": "Webcam 1080p",
+      "description": "Fixed-focus USB webcam with built-in microphone.",
+      "price_inr": 2199,
+      "stock": 10,
+      "category": "electronics"
+    },
+    {
+      "id": "sku_009",
+      "name": "Wireless Earbuds",
+      "description": "True wireless earbuds with charging case.",
+      "price_inr": 2999,
+      "stock": 14,
+      "category": "electronics"
+    },
+    {
+      "id": "sku_010",
+      "name": "Mechanical Keyboard",
+      "description": "Compact mechanical keyboard, hot-swappable switches.",
+      "price_inr": 3499,
+      "stock": 8,
+      "category": "electronics"
+    }
+  ]
+}
