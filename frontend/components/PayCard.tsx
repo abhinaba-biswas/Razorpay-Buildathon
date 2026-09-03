@@ -7,11 +7,12 @@ interface Props {
 
 export default function PayCard({ url, total_inr }: Props) {
   return (
-    <div className="animate-slide-up self-stretch rounded-2xl border border-success/25 overflow-hidden backdrop-blur-xl"
+    <div className="animate-slide-up self-stretch">
+    <div className="rounded-2xl border border-success/25 overflow-hidden backdrop-blur-xl"
       style={{ background: 'var(--c-panel)', boxShadow: '0 0 32px -8px var(--c-ok)' }}>
 
       {/* Green top strip */}
-      <div className="h-0.5 bg-gradient-to-r from-success via-emerald-300 to-success" />
+      <div className="h-0.5 bg-gradient-to-r from-success via-success-2 to-success" />
 
       <div className="p-4">
         <div className="flex items-center gap-2 mb-3">
@@ -25,7 +26,7 @@ export default function PayCard({ url, total_inr }: Props) {
           </span>
         </div>
 
-        <div className="text-2xl font-bold text-text-main tabular-nums mb-0.5">
+        <div className="font-display text-2xl font-bold text-text-main tabular-nums mb-0.5">
           ₹{total_inr.toLocaleString('en-IN')}
         </div>
         <div className="text-[11px] text-muted mb-4">
@@ -36,7 +37,7 @@ export default function PayCard({ url, total_inr }: Props) {
           href={url}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 h-10 px-5 rounded-xl bg-success text-[#071a0e] text-[13px] font-bold
+          className="inline-flex items-center gap-2 h-10 px-5 rounded-xl bg-success text-success-fg text-[13px] font-bold
             transition-all hover:opacity-90 active:scale-[0.98] glow-ok"
         >
           Pay now
@@ -53,6 +54,7 @@ export default function PayCard({ url, total_inr }: Props) {
           Waiting for payment confirmation…
         </div>
       </div>
+    </div>
     </div>
   );
 }

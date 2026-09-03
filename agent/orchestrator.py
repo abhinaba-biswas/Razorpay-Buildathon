@@ -217,12 +217,13 @@ def handle_turn(session_id, message):
             result = razorpay_tools.create_payment_link(session_id, order_id)
             db.save_session(session_id, session["cart"], None)
             if result["ok"]:
-                short_url = result["short_url"]
+                short_url = result.get("short_url") or ""
+                pay_note = f" [Open payment page →]({short_url})" if short_url else ""
                 reply = (
-                    f"Confirmed — your payment link is ready. "
-                    f"Complete the payment and I'll let you know once it's processed."
+                    f"Confirmed — your payment link is ready.{pay_note}\n\n"
+                    f"Complete the payment and I'll notify you here once it's processed."
                 )
-                return reply, _ui_state(session_id), None, short_url
+                return reply, _ui_state(session_id), None, short_url or None
             return (
                 f"I couldn't create the payment link — {result['error']}. Want to try again?",
                 _ui_state(session_id),

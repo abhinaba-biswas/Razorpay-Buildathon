@@ -53,6 +53,25 @@ function SendIcon() {
   );
 }
 
+function renderAgentMarkdown(raw: string): string {
+  let s = raw
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  s = s.replace(/\*\*([^*]+?)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/(?<!\*)\*([^*\n]+?)\*(?!\*)/g, '<em>$1</em>');
+  s = s.replace(/`([^`]+?)`/g, '<code style="font-family:monospace;font-size:0.88em;background:var(--c-border);padding:1px 4px;border-radius:4px">$1</code>');
+  s = s.replace(
+    /\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g,
+    '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:var(--c-accent);text-decoration:underline;font-weight:500">$1</a>',
+  );
+  s = s.replace(/^(\d+)\.\s+/gm, '<strong>$1.</strong>&nbsp;');
+  s = s.replace(/\n/g, '<br>');
+
+  return s;
+}
+
 function MessageRenderer({
   msg, onConfirm, onCancel, busy,
 }: { msg: ChatMessage; onConfirm: () => void; onCancel: () => void; busy: boolean }) {
@@ -65,16 +84,19 @@ function MessageRenderer({
   const isUser = msg.kind === 'user';
   return (
     <div
-      className={`animate-slide-up max-w-[80%] rounded-2xl px-4 py-3 text-[13.5px] leading-relaxed whitespace-pre-wrap break-words border-subtle
+      className={`animate-slide-up max-w-[80%] rounded-2xl px-4 py-3 text-[13.5px] leading-relaxed break-words border-subtle
         ${isUser
-          ? 'self-end bg-bubble-user text-text-main rounded-br-sm shadow-sm'
+          ? 'self-end bg-bubble-user text-text-main rounded-br-sm shadow-sm whitespace-pre-wrap'
           : 'self-start bg-bubble-agent text-text-main rounded-bl-sm backdrop-blur-xl'
         }`}
     >
       {!isUser && (
-        <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent mr-2 mb-0.5 align-middle" />
+        <span className="inline-block w-1.5 h-1.5 rounded-full bg-accent mr-2 mb-0.5 align-middle flex-shrink-0" />
       )}
-      {msg.text}
+      {isUser
+        ? msg.text
+        : <span dangerouslySetInnerHTML={{ __html: renderAgentMarkdown(msg.text) }} />
+      }
     </div>
   );
 }
@@ -84,7 +106,9 @@ export default function ChatPanel({ messages, uiState, busy, isDark, onSend, onC
   const inputRef  = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    requestAnimationFrame(() => {
+      bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    });
   }, [messages]);
 
   const submit = () => {
@@ -110,8 +134,10 @@ export default function ChatPanel({ messages, uiState, busy, isDark, onSend, onC
             <div className="absolute inset-0 rounded-xl ring-1 ring-accent/30" />
           </div>
           <div>
-            <div className="text-sm font-bold gradient-text tracking-tight">Nimbus Gear</div>
-            <div className="text-[11px] text-muted mt-0.5">Checkout agent · actions logged →</div>
+            <div className="font-display text-[15px] font-bold gradient-text tracking-tight leading-none">
+              Nimbus Gear
+            </div>
+            <div className="text-[11px] text-muted mt-1">Checkout agent · actions logged →</div>
           </div>
         </div>
 

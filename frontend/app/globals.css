@@ -3,46 +3,56 @@
 @tailwind utilities;
 
 /* ─── Theme tokens ─────────────────────────────────────────────────── */
+/* Razorpay brand palette
+   #305eff electric blue · #192839 navy · #009e5c green · #f8fafc off-white */
 :root {
-  /* Light theme */
-  --c-bg:           #f4f5fb;
-  --c-panel:        rgba(255, 255, 255, 0.72);
-  --c-border:       rgba(0, 0, 0, 0.08);
-  --c-text:         #111320;
-  --c-muted:        #6b7080;
-  --c-accent:       #e8721c;
+  /* Light theme — Razorpay's native surface */
+  --c-bg:           #f8fafc;
+  --c-panel:        rgba(255, 255, 255, 0.85);
+  --c-border:       rgba(25, 40, 57, 0.10);
+  --c-text:         #192839;
+  --c-muted:        #5c7186;
+  --c-accent:       #305eff;
+  --c-accent-2:     #5b82ff;
   --c-accent-fg:    #ffffff;
-  --c-ok:           #059669;
+  --c-ok:           #009e5c;
+  --c-ok-2:         #34c98a;
+  --c-ok-fg:        #ffffff;
   --c-err:          #dc2626;
-  --c-bubble-agent: rgba(240, 242, 252, 0.9);
-  --c-bubble-user:  rgba(224, 234, 255, 0.9);
+  --c-err-2:        #f87171;
+  --c-bubble-agent: rgba(255, 255, 255, 0.92);
+  --c-bubble-user:  rgba(48, 94, 255, 0.10);
 
-  --c-blob1: rgba(232, 114, 28, 0.12);
-  --c-blob2: rgba(99, 102, 241, 0.10);
-  --c-blob3: rgba(16, 185, 129, 0.08);
+  --c-blob1: rgba(48, 94, 255, 0.10);
+  --c-blob2: rgba(0, 158, 92, 0.07);
+  --c-blob3: rgba(48, 94, 255, 0.06);
 
-  --shadow-panel: 0 4px 24px rgba(0,0,0,0.07);
+  --shadow-panel: 0 4px 24px rgba(25, 40, 57, 0.06);
 }
 
 .dark {
-  /* Dark theme */
-  --c-bg:           #08091a;
-  --c-panel:        rgba(13, 16, 30, 0.85);
-  --c-border:       rgba(255, 255, 255, 0.065);
-  --c-text:         #eceef8;
-  --c-muted:        #7880a0;
-  --c-accent:       #ff8c42;
-  --c-accent-fg:    #1a0d00;
-  --c-ok:           #34d399;
+  /* Dark theme — built from #192839 navy */
+  --c-bg:           #0c1620;
+  --c-panel:        rgba(25, 40, 57, 0.72);
+  --c-border:       rgba(255, 255, 255, 0.08);
+  --c-text:         #f8fafc;
+  --c-muted:        #8296ad;
+  --c-accent:       #4d78ff;
+  --c-accent-2:     #7b9bff;
+  --c-accent-fg:    #ffffff;
+  --c-ok:           #00c774;
+  --c-ok-2:         #4ade9e;
+  --c-ok-fg:        #04231a;
   --c-err:          #f87171;
-  --c-bubble-agent: rgba(20, 24, 44, 0.9);
-  --c-bubble-user:  rgba(24, 40, 70, 0.9);
+  --c-err-2:        #fca5a5;
+  --c-bubble-agent: rgba(25, 40, 57, 0.85);
+  --c-bubble-user:  rgba(48, 94, 255, 0.18);
 
-  --c-blob1: rgba(255, 140, 66, 0.07);
-  --c-blob2: rgba(99, 102, 241, 0.09);
-  --c-blob3: rgba(52, 211, 153, 0.06);
+  --c-blob1: rgba(48, 94, 255, 0.13);
+  --c-blob2: rgba(0, 158, 92, 0.08);
+  --c-blob3: rgba(77, 120, 255, 0.08);
 
-  --shadow-panel: 0 4px 40px rgba(0,0,0,0.4);
+  --shadow-panel: 0 4px 40px rgba(0, 0, 0, 0.45);
 }
 
 /* ─── Base ─────────────────────────────────────────────────────────── */
@@ -69,7 +79,7 @@ html, body {
   }
 
   .gradient-text {
-    background: linear-gradient(135deg, var(--c-accent) 0%, #ffb570 100%);
+    background: linear-gradient(135deg, var(--c-accent) 0%, var(--c-accent-2) 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;

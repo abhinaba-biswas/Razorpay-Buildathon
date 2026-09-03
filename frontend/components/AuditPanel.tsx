@@ -17,15 +17,26 @@ function outcomeConfig(outcome: string) {
   return { badge: 'bg-fail/10 text-fail ring-1 ring-fail/20', dot: 'bg-fail', glow: 'shadow-[0_0_8px_-2px_var(--c-err)]' };
 }
 
+const ACTION_LABELS: Record<string, string> = {
+  create_order:        'Create Order',
+  create_payment_link: 'Create Payment Link',
+  apply_discount:      'Apply Discount',
+  get_order_status:    'Check Order Status',
+  chat_turn:           'Agent Turn',
+  webhook_received:    'Webhook Received',
+};
+
+function actionLabel(action: string): string {
+  return ACTION_LABELS[action] ?? action.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
 function AuditRowItem({ row }: { row: AuditRow }) {
   const [open, setOpen] = useState(false);
   const { badge, dot, glow } = outcomeConfig(row.outcome);
 
   const details: [string, string | null][] = [
     ['Bound check', row.bound_check_result],
-    ['Razorpay response', row.razorpay_response_summary],
-    ['Inputs', row.inputs_redacted],
-    ['Session', row.session_id],
+    ['Reasoning', row.reasoning],
   ];
 
   return (
@@ -42,8 +53,8 @@ function AuditRowItem({ row }: { row: AuditRow }) {
         <div className="flex items-center justify-between gap-2 mb-1.5">
           <div className="flex items-center gap-1.5 min-w-0">
             <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${dot} ${open ? 'shadow-sm' : ''}`} />
-            <span className="text-[12px] font-semibold text-text-main truncate font-mono">
-              {row.action}
+            <span className="text-[12px] font-semibold text-text-main truncate">
+              {actionLabel(row.action)}
             </span>
           </div>
           <span className={`shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${badge}`}>
@@ -103,7 +114,7 @@ export default function AuditPanel({ rows, onReset }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-4 border-b border-border shrink-0">
         <div>
-          <div className="text-[13px] font-semibold text-text-main tracking-tight flex items-center gap-1.5">
+          <div className="font-display text-[14px] font-semibold text-text-main tracking-tight flex items-center gap-1.5">
             Audit Trail
           </div>
           <div className="text-[11px] text-muted mt-0.5 flex items-center">

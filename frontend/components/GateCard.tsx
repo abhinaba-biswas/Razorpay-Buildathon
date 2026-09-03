@@ -20,7 +20,7 @@ export default function GateCard({ data, onConfirm, onCancel, disabled }: Props)
         style={{ background: 'var(--c-panel)', backdropFilter: 'blur(20px)' }}>
 
         {/* Accent top bar */}
-        <div className="h-0.5 w-full bg-gradient-to-r from-accent via-orange-300 to-accent" />
+        <div className="h-0.5 w-full bg-gradient-to-r from-accent via-accent-2 to-accent" />
 
         <div className="p-4">
           {/* Label */}
@@ -51,7 +51,7 @@ export default function GateCard({ data, onConfirm, onCancel, disabled }: Props)
           {/* Total */}
           <div className="flex items-baseline justify-between mb-1.5">
             <span className="text-[11px] text-muted uppercase tracking-wider">Total</span>
-            <span className="text-2xl font-bold gradient-text tabular-nums">₹{fmt(data.total_inr)}</span>
+            <span className="font-display text-2xl font-bold gradient-text tabular-nums">₹{fmt(data.total_inr)}</span>
           </div>
           <p className="text-[11px] text-muted mb-4">
             Action: creating a Razorpay payment link for ₹{fmt(data.total_inr)}

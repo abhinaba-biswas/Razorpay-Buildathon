@@ -4,9 +4,10 @@ interface Props { reason: string; order_id: string; }
 
 export default function FailureCard({ reason, order_id }: Props) {
   return (
-    <div className="animate-slide-up self-stretch rounded-2xl border border-fail/25 overflow-hidden backdrop-blur-xl"
+    <div className="animate-slide-up self-stretch">
+    <div className="rounded-2xl border border-fail/25 overflow-hidden backdrop-blur-xl"
       style={{ background: 'var(--c-panel)', boxShadow: '0 0 24px -8px var(--c-err)' }}>
-      <div className="h-0.5 bg-gradient-to-r from-fail via-red-300 to-fail" />
+      <div className="h-0.5 bg-gradient-to-r from-fail via-fail-2 to-fail" />
       <div className="p-4">
         <div className="flex items-center gap-2 mb-3">
           <div className="w-5 h-5 rounded-lg bg-fail/10 flex items-center justify-center">
@@ -25,6 +26,7 @@ export default function FailureCard({ reason, order_id }: Props) {
           Try again with a different card — just ask.
         </div>
       </div>
+    </div>
     </div>
   );
 }
