@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nimbus Gear — Checkout Agent</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --panel: #161922;
+    --border: #262b38;
+    --text: #e6e8ee;
+    --muted: #8b91a3;
+    --accent: #ff8a3d;
+    --success: #3ddc84;
+    --fail: #ff5c5c;
+    --bubble-agent: #1d212c;
+    --bubble-user: #1e2d44;
+    --link: #5ba8ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    overflow: hidden;
+  }
+  .layout { display: flex; width: 100%; height: 100%; }
+
+  /* ── Chat panel ── */
+  .chat-panel {
+    flex: 65%;
+    display: flex;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+    min-width: 0;
+  }
+  header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .header-title { font-size: 14px; font-weight: 600; letter-spacing: 0.02em; }
+  .header-sub { color: var(--muted); font-weight: 400; font-size: 12px; margin-top: 2px; }
+  .header-badge {
+    font-size: 10px;
+    background: rgba(255,138,61,0.12);
+    color: var(--accent);
+    border: 1px solid rgba(255,138,61,0.3);
+    padding: 3px 8px;
+    border-radius: 4px;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .bubble {
+    max-width: 78%;
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 14px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .bubble.agent {
+    background: var(--bubble-agent);
+    align-self: flex-start;
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 3px;
+  }
+  .bubble.user {
+    background: var(--bubble-user);
+    align-self: flex-end;
+    border-bottom-right-radius: 3px;
+  }
+  .bubble.typing { color: var(--muted); font-style: italic; }
+
+  /* ── Gate card ── */
+  .gate-card {
+    align-self: stretch;
+    border: 1px solid var(--accent);
+    background: #1c160d;
+    border-radius: 10px;
+    padding: 16px;
+    font-size: 14px;
+  }
+  .card-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+  .gate-card .card-label { color: var(--accent); }
+  .gate-card .items { margin-bottom: 6px; }
+  .gate-card .total { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .gate-card .action-desc { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+  .gate-actions { display: flex; gap: 8px; }
+  .btn { padding: 9px 18px; border-radius: 6px; border: none; font-size: 13px; cursor: pointer; font-weight: 600; transition: opacity 0.15s; }
+  .btn:hover { opacity: 0.85; }
+  .btn-confirm { background: var(--accent); color: #1a0e00; }
+  .btn-cancel { background: transparent; color: var(--muted); border: 1px solid var(--border) !important; font-weight: 400; }
+
+  /* ── Payment link card ── */
+  .pay-card {
+    align-self: stretch;
+    border: 1px solid #2a4a2a;
+    background: #0e1a0e;
+    border-radius: 10px;
+    padding: 16px;
+    font-size: 14px;
+  }
+  .pay-card .card-label { color: var(--success); }
+  .pay-card .pay-amount { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+  .pay-card .pay-desc { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+  .btn-pay {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--success);
+    color: #081a0e;
+    padding: 10px 20px;
+    border-radius: 7px;
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+    transition: opacity 0.15s;
+  }
+  .btn-pay:hover { opacity: 0.85; }
+  .pay-waiting { margin-top: 10px; font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .pulse { width: 8px; height: 8px; border-radius: 50%; background: var(--success); animation: pulse 1.5s ease-in-out infinite; }
+  @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  /* ── Success card ── */
+  .success-card {
+    align-self: stretch;
+    border: 1px solid #2a4a2a;
+    background: #0e1a0e;
+    border-radius: 10px;
+    padding: 16px;
+    font-size: 14px;
+  }
+  .success-card .card-label { color: var(--success); }
+  .success-card .big { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .success-card .sub { color: var(--muted); font-size: 13px; }
+
+  /* ── Failure card ── */
+  .failure-card {
+    align-self: stretch;
+    border: 1px solid rgba(255,92,92,0.4);
+    background: #1a0d0d;
+    border-radius: 10px;
+    padding: 16px;
+    font-size: 14px;
+  }
+  .failure-card .card-label { color: var(--fail); }
+  .failure-card .big { font-weight: 600; margin-bottom: 4px; }
+  .failure-card .sub { color: var(--muted); font-size: 13px; }
+
+  /* ── Cart strip ── */
+  .cart-strip {
+    border-top: 1px solid var(--border);
+    padding: 9px 16px;
+    font-size: 13px;
+    color: var(--muted);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 38px;
+  }
+  .cart-total { font-weight: 600; color: var(--text); }
+
+  /* ── Input row ── */
+  .input-row {
+    display: flex;
+    gap: 8px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+  }
+  .input-row input {
+    flex: 1;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .input-row input:focus { border-color: var(--accent); }
+  .input-row button {
+    background: var(--accent);
+    color: #1a0e00;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .input-row button:hover { opacity: 0.85; }
+  .input-row input:disabled, .input-row button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ── Audit panel ── */
+  .audit-panel {
+    flex: 35%;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .audit-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .audit-header .left .header-title { font-size: 14px; font-weight: 600; letter-spacing: 0.02em; }
+  .audit-header .left .header-sub { color: var(--muted); font-size: 12px; margin-top: 2px; }
+  .btn-reset {
+    font-size: 11px;
+    padding: 5px 10px;
+    border-radius: 5px;
+    background: transparent;
+    border: 1px solid rgba(255,92,92,0.3);
+    color: rgba(255,92,92,0.7);
+    cursor: pointer;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    transition: all 0.15s;
+  }
+  .btn-reset:hover { background: rgba(255,92,92,0.1); color: var(--fail); border-color: var(--fail); }
+
+  .audit-list { flex: 1; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 6px; }
+  .audit-row {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .audit-row:hover { border-color: var(--muted); }
+  .audit-row.expanded { border-color: var(--accent); }
+  .audit-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .audit-action { font-weight: 700; font-size: 12px; letter-spacing: 0.01em; }
+  .outcome {
+    font-size: 10px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    flex-shrink: 0;
+  }
+  .outcome-success { background: rgba(61,220,132,0.12); color: var(--success); }
+  .outcome-failed  { background: rgba(255,92,92,0.12);  color: var(--fail); }
+  .outcome-rejected{ background: rgba(255,138,61,0.12); color: var(--accent); }
+  .outcome-paid    { background: rgba(61,220,132,0.12); color: var(--success); }
+  .audit-reasoning { color: var(--muted); line-height: 1.4; margin-bottom: 4px; }
+  .audit-time { color: #555d70; font-size: 11px; }
+  .audit-detail {
+    display: none;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.5;
+  }
+  .audit-row.expanded .audit-detail { display: block; }
+  .audit-detail-key { color: #6b7080; }
+  .audit-empty { color: var(--muted); text-align: center; padding: 32px 16px; font-size: 13px; }
+
+  /* ── Responsive ── */
+  @media (max-width: 680px) {
+    .layout { flex-direction: column; }
+    .chat-panel { border-right: none; border-bottom: 1px solid var(--border); flex: none; height: 60vh; }
+    .audit-panel { flex: 1; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+
+  <!-- Chat panel -->
+  <div class="chat-panel">
+    <header>
+      <div>
+        <div class="header-title">Nimbus Gear</div>
+        <div class="header-sub">Checkout agent — every action is logged on the right.</div>
+      </div>
+      <div class="header-badge">TEST MODE</div>
+    </header>
+    <div class="messages" id="messages"></div>
+    <div class="cart-strip" id="cartStrip">
+      <span>Cart is empty</span>
+    </div>
+    <div class="input-row">
+      <input id="msgInput" type="text" placeholder="Ask about products or tell me what you want…" autocomplete="off">
+      <button id="sendBtn">Send</button>
+    </div>
+  </div>
+
+  <!-- Audit trail panel -->
+  <div class="audit-panel">
+    <div class="audit-header">
+      <div class="left">
+        <div class="header-title">Audit Trail</div>
+        <div class="header-sub">Read-only · live updates every 3s</div>
+      </div>
+      <button class="btn-reset" id="resetBtn" title="Clear all demo data for a fresh run">Reset Demo</button>
+    </div>
+    <div class="audit-list" id="auditList">
+      <div class="audit-empty" id="auditEmpty">No actions yet — start chatting to see the log.</div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Session ──────────────────────────────────────────────────────
+const sessionId = "sess_" + Math.random().toString(36).slice(2, 10);
+
+// ── DOM refs ─────────────────────────────────────────────────────
+const messagesEl  = document.getElementById("messages");
+const cartStripEl = document.getElementById("cartStrip");
+const msgInput    = document.getElementById("msgInput");
+const sendBtn     = document.getElementById("sendBtn");
+const auditListEl = document.getElementById("auditList");
+const auditEmpty  = document.getElementById("auditEmpty");
+const resetBtn    = document.getElementById("resetBtn");
+
+// ── Helpers ───────────────────────────────────────────────────────
+function scrollBottom() {
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function setEnabled(enabled) {
+  msgInput.disabled = !enabled;
+  sendBtn.disabled  = !enabled;
+}
+
+function el(tag, cls, text) {
+  const e = document.createElement(tag);
+  if (cls)  e.className   = cls;
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+
+// ── Message rendering ─────────────────────────────────────────────
+function addBubble(text, role) {
+  const b = el("div", "bubble " + role, text);
+  messagesEl.appendChild(b);
+  scrollBottom();
+  return b;
+}
+
+function addGateCard(pending) {
+  const card = el("div", "gate-card");
+
+  const lbl = el("div", "card-label", "⚠ Confirmation required");
+  card.appendChild(lbl);
+
+  const items = el("div", "items");
+  items.textContent = pending.items.map(i => i.name + " ×" + i.qty).join(", ");
+  card.appendChild(items);
+
+  const total = el("div", "total", "₹" + pending.total_inr.toLocaleString("en-IN"));
+  card.appendChild(total);
+
+  const desc = el("div", "action-desc", "Action: creating a Razorpay payment link for ₹" + pending.total_inr.toLocaleString("en-IN"));
+  card.appendChild(desc);
+
+  const actions = el("div", "gate-actions");
+  const confirmBtn = el("button", "btn btn-confirm", "Confirm");
+  const cancelBtn  = el("button", "btn btn-cancel",  "Cancel");
+  confirmBtn.onclick = () => sendMessage("confirm");
+  cancelBtn.onclick  = () => sendMessage("cancel");
+  actions.appendChild(confirmBtn);
+  actions.appendChild(cancelBtn);
+  card.appendChild(actions);
+
+  messagesEl.appendChild(card);
+  scrollBottom();
+  return card;
+}
+
+function addPayCard(url, totalInr) {
+  const card = el("div", "pay-card");
+
+  const lbl = el("div", "card-label", "Payment ready");
+  card.appendChild(lbl);
+
+  const amt = el("div", "pay-amount", "₹" + totalInr.toLocaleString("en-IN"));
+  card.appendChild(amt);
+
+  const desc = el("div", "pay-desc", "Complete your payment on Razorpay's secure page.");
+  card.appendChild(desc);
+
+  const link = document.createElement("a");
+  link.href = url;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.className = "btn-pay";
+  link.textContent = "Pay now →";
+  card.appendChild(link);
+
+  const waiting = el("div", "pay-waiting");
+  const dot = el("div", "pulse");
+  waiting.appendChild(dot);
+  waiting.appendChild(el("span", null, "Waiting for payment confirmation…"));
+  card.appendChild(waiting);
+
+  messagesEl.appendChild(card);
+  scrollBottom();
+  return card;
+}
+
+function addSuccessCard(orderId, totalInr) {
+  const card = el("div", "success-card");
+  card.appendChild(el("div", "card-label", "✓ Payment confirmed"));
+  card.appendChild(el("div", "big", "₹" + totalInr.toLocaleString("en-IN") + " received"));
+  card.appendChild(el("div", "sub", "Order " + orderId + " is complete. Thank you!"));
+  messagesEl.appendChild(card);
+  scrollBottom();
+}
+
+function addFailureCard(reason, orderId) {
+  const card = el("div", "failure-card");
+  card.appendChild(el("div", "card-label", "✗ Payment failed"));
+  card.appendChild(el("div", "big", "The payment didn't go through"));
+  card.appendChild(el("div", "sub", (reason || "The card was declined") + ". Order: " + orderId));
+  const retry = el("div", "sub");
+  retry.style.marginTop = "8px";
+  retry.textContent = "You can try again with a different card — just ask.";
+  card.appendChild(retry);
+  messagesEl.appendChild(card);
+  scrollBottom();
+}
+
+// ── Cart strip ────────────────────────────────────────────────────
+function updateCartStrip(uiState) {
+  cartStripEl.innerHTML = "";
+  if (!uiState || !uiState.cart || uiState.cart.length === 0) {
+    cartStripEl.appendChild(el("span", null, "Cart is empty"));
+    return;
+  }
+  const desc = uiState.cart.map(i => i.name + " ×" + i.qty).join(", ");
+  cartStripEl.appendChild(el("span", null, desc));
+  const totalSpan = el("span", "cart-total", "₹" + uiState.total_inr.toLocaleString("en-IN"));
+  cartStripEl.appendChild(totalSpan);
+}
+
+// ── Send message ──────────────────────────────────────────────────
+async function sendMessage(text) {
+  text = text.trim();
+  if (!text) return;
+
+  addBubble(text, "user");
+  msgInput.value = "";
+  setEnabled(false);
+  const typingEl = addBubble("Thinking…", "agent typing");
+
+  try {
+    const res = await fetch("/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session_id: sessionId, message: text }),
+    });
+    typingEl.remove();
+
+    if (!res.ok) {
+      const failure = el("div", "failure-card");
+      failure.appendChild(el("div", "card-label", "✗ Error"));
+      failure.appendChild(el("div", "big", "Something went wrong"));
+      failure.appendChild(el("div", "sub", "Please try again in a moment."));
+      messagesEl.appendChild(failure);
+      scrollBottom();
+      return;
+    }
+
+    const data = await res.json();
+
+    if (data.reply_text) addBubble(data.reply_text, "agent");
+
+    if (data.pending_confirmation) {
+      addGateCard(data.pending_confirmation);
+    }
+
+    if (data.payment_link) {
+      const totalInr = data.ui_state && data.ui_state.total_inr
+        ? data.ui_state.total_inr
+        : (data.pending_confirmation ? data.pending_confirmation.total_inr : 0);
+      addPayCard(data.payment_link, totalInr);
+    }
+
+    updateCartStrip(data.ui_state);
+
+  } catch (e) {
+    typingEl.remove();
+    addBubble("Connection issue — please try again.", "agent");
+  } finally {
+    setEnabled(true);
+    msgInput.focus();
+  }
+}
+
+sendBtn.addEventListener("click", () => sendMessage(msgInput.value));
+msgInput.addEventListener("keydown", e => {
+  if (e.key === "Enter" && !e.shiftKey) sendMessage(msgInput.value);
+});
+
+// ── Notification polling ──────────────────────────────────────────
+// Proactively shows payment success/failure cards when webhooks arrive,
+// without requiring the user to type a message first.
+let lastNotifCheck = 0;
+async function pollNotifications() {
+  try {
+    const res = await fetch("/notifications/" + encodeURIComponent(sessionId));
+    const data = await res.json();
+    const n = data.notification;
+    if (!n) return;
+
+    if (n.type === "payment_success") {
+      addSuccessCard(n.order_id, n.total_inr);
+      updateCartStrip({ cart: [], total_inr: 0 });
+    } else if (n.type === "payment_failed") {
+      addFailureCard(n.reason, n.order_id);
+    }
+  } catch (e) { /* transient — retry on next tick */ }
+}
+
+setInterval(pollNotifications, 3000);
+
+// ── Audit trail ───────────────────────────────────────────────────
+function outcomeClass(outcome) {
+  const o = (outcome || "").toLowerCase();
+  if (o === "success" || o === "paid") return "outcome-success";
+  if (o === "rejected")                return "outcome-rejected";
+  return "outcome-failed";
+}
+
+function safeText(s) {
+  // Returns a text node — never innerHTML, no XSS possible
+  return document.createTextNode(s || "");
+}
+
+let _expandedId = null;
+
+function renderAuditRow(r) {
+  const row = el("div", "audit-row");
+  const domId = "ar_" + r.id;
+  row.id = domId;
+
+  // Top row: action + outcome badge
+  const top = el("div", "audit-top");
+  const act = el("div", "audit-action");
+  act.appendChild(safeText(r.action));
+  const badge = el("div", "outcome " + outcomeClass(r.outcome));
+  badge.appendChild(safeText(r.outcome));
+  top.appendChild(act);
+  top.appendChild(badge);
+  row.appendChild(top);
+
+  // Reasoning
+  const reas = el("div", "audit-reasoning");
+  reas.appendChild(safeText(r.reasoning || "—"));
+  row.appendChild(reas);
+
+  // Time
+  const timeEl = el("div", "audit-time");
+  timeEl.appendChild(safeText(new Date(r.timestamp).toLocaleTimeString()));
+  row.appendChild(timeEl);
+
+  // Expandable detail
+  const detail = el("div", "audit-detail");
+  const fields = [
+    ["Bound check", r.bound_check_result],
+    ["Razorpay response", r.razorpay_response_summary],
+    ["Session", r.session_id],
+    ["Inputs", r.inputs_redacted],
+  ];
+  for (const [k, v] of fields) {
+    if (!v) continue;
+    const line = el("div");
+    const key = el("span", "audit-detail-key");
+    key.appendChild(safeText(k + ": "));
+    line.appendChild(key);
+    line.appendChild(safeText(v));
+    detail.appendChild(line);
+  }
+  row.appendChild(detail);
+
+  row.addEventListener("click", () => {
+    const wasExpanded = row.classList.contains("expanded");
+    // Collapse any currently expanded row
+    if (_expandedId && _expandedId !== domId) {
+      const prev = document.getElementById(_expandedId);
+      if (prev) prev.classList.remove("expanded");
+    }
+    row.classList.toggle("expanded", !wasExpanded);
+    _expandedId = !wasExpanded ? domId : null;
+  });
+
+  return row;
+}
+
+let _lastAuditCount = 0;
+
+async function pollAudit() {
+  try {
+    const res = await fetch("/audit");
+    const rows = await res.json();
+    if (rows.length === _lastAuditCount) return;  // nothing changed
+    _lastAuditCount = rows.length;
+
+    auditEmpty.hidden = rows.length > 0;
+    auditListEl.innerHTML = "";
+    if (rows.length > 0) auditListEl.removeChild && void 0;
+    for (const r of rows) {
+      auditListEl.appendChild(renderAuditRow(r));
+    }
+  } catch (e) { /* transient */ }
+}
+
+pollAudit();
+setInterval(pollAudit, 3000);
+
+// ── Demo reset ────────────────────────────────────────────────────
+resetBtn.addEventListener("click", async () => {
+  if (!confirm("Reset all demo data? This clears all orders, sessions, and audit logs. Refresh the page after.")) return;
+  try {
+    const res = await fetch("/demo/reset", { method: "POST" });
+    const data = await res.json();
+    alert(data.message || "Reset done — please refresh the page.");
+  } catch (e) {
+    alert("Reset failed — check the server.");
+  }
+});
+
+// ── Welcome message ───────────────────────────────────────────────
+addBubble(
+  "Hi — I'm the Nimbus Gear checkout assistant.\n\nAsk me what we sell, add items to your cart, and I'll handle the payment. Everything I do is logged in the audit trail on the right.",
+  "agent"
+);
+</script>
+</body>
+</html>

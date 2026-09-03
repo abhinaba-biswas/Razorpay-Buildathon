@@ -1,0 +1,160 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Theme tokens ─────────────────────────────────────────────────── */
+/* Razorpay brand palette
+   #305eff electric blue · #192839 navy · #009e5c green · #f8fafc off-white */
+:root {
+  /* Light theme — Razorpay's native surface */
+  --c-bg:           #f8fafc;
+  --c-panel:        rgba(255, 255, 255, 0.85);
+  --c-border:       rgba(25, 40, 57, 0.10);
+  --c-text:         #192839;
+  --c-muted:        #5c7186;
+  --c-accent:       #305eff;
+  --c-accent-2:     #5b82ff;
+  --c-accent-fg:    #ffffff;
+  --c-ok:           #009e5c;
+  --c-ok-2:         #34c98a;
+  --c-ok-fg:        #ffffff;
+  --c-err:          #dc2626;
+  --c-err-2:        #f87171;
+  --c-bubble-agent: rgba(255, 255, 255, 0.92);
+  --c-bubble-user:  rgba(48, 94, 255, 0.10);
+
+  --c-blob1: rgba(48, 94, 255, 0.10);
+  --c-blob2: rgba(0, 158, 92, 0.07);
+  --c-blob3: rgba(48, 94, 255, 0.06);
+
+  --shadow-panel: 0 4px 24px rgba(25, 40, 57, 0.06);
+}
+
+.dark {
+  /* Dark theme — built from #192839 navy */
+  --c-bg:           #0c1620;
+  --c-panel:        rgba(25, 40, 57, 0.72);
+  --c-border:       rgba(255, 255, 255, 0.08);
+  --c-text:         #f8fafc;
+  --c-muted:        #8296ad;
+  --c-accent:       #4d78ff;
+  --c-accent-2:     #7b9bff;
+  --c-accent-fg:    #ffffff;
+  --c-ok:           #00c774;
+  --c-ok-2:         #4ade9e;
+  --c-ok-fg:        #04231a;
+  --c-err:          #f87171;
+  --c-err-2:        #fca5a5;
+  --c-bubble-agent: rgba(25, 40, 57, 0.85);
+  --c-bubble-user:  rgba(48, 94, 255, 0.18);
+
+  --c-blob1: rgba(48, 94, 255, 0.13);
+  --c-blob2: rgba(0, 158, 92, 0.08);
+  --c-blob3: rgba(77, 120, 255, 0.08);
+
+  --shadow-panel: 0 4px 40px rgba(0, 0, 0, 0.45);
+}
+
+/* ─── Base ─────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--c-bg);
+  color: var(--c-text);
+  -webkit-font-smoothing: antialiased;
+  transition: background 0.35s ease, color 0.35s ease;
+}
+
+/* ─── Glass utility ─────────────────────────────────────────────────── */
+@layer utilities {
+  .glass {
+    background: var(--c-panel);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    box-shadow: var(--shadow-panel);
+  }
+
+  .gradient-text {
+    background: linear-gradient(135deg, var(--c-accent) 0%, var(--c-accent-2) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .glow-accent {
+    box-shadow: 0 0 24px -4px var(--c-accent);
+  }
+  .glow-ok {
+    box-shadow: 0 0 24px -4px var(--c-ok);
+  }
+
+  .border-subtle {
+    border: 1px solid var(--c-border);
+  }
+
+  /* Animated conic-gradient border for gate card */
+  .gate-border {
+    position: relative;
+    border-radius: 14px;
+  }
+  .gate-border::before {
+    content: '';
+    position: absolute;
+    inset: -1.5px;
+    border-radius: 15px;
+    background: conic-gradient(
+      from var(--border-angle, 0deg),
+      var(--c-accent) 0%,
+      transparent 30%,
+      transparent 70%,
+      var(--c-accent) 100%
+    );
+    animation: gate-spin 3s linear infinite;
+    z-index: 0;
+  }
+  .gate-border > * { position: relative; z-index: 1; }
+  @keyframes gate-spin {
+    to { --border-angle: 360deg; }
+  }
+  @property --border-angle {
+    syntax: '<angle>';
+    inherits: false;
+    initial-value: 0deg;
+  }
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--c-border); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--c-muted); }
+
+/* ─── Typing dots ───────────────────────────────────────────────────── */
+.dot-1 { animation-delay: 0s; }
+.dot-2 { animation-delay: 0.18s; }
+.dot-3 { animation-delay: 0.36s; }
+
+/* ─── Audit detail expand ───────────────────────────────────────────── */
+.audit-detail {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.22s ease;
+}
+.audit-detail.open { grid-template-rows: 1fr; }
+.audit-detail-inner { overflow: hidden; }
+
+/* ─── Theme transition on everything ───────────────────────────────── */
+*, *::before, *::after {
+  transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+  transition-duration: 0.3s;
+  transition-timing-function: ease;
+}
+/* Exclude layout transitions */
+.no-theme-transition,
+.no-theme-transition * {
+  transition: none !important;
+}
