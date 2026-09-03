@@ -232,9 +232,9 @@ def handle_turn(session_id, message):
             )
         normalized = message.strip().lower()
         if normalized in {"cancel", "no", "stop", "no cancel"}:
-            db.save_session(session_id, session["cart"], None)
+            db.save_session(session_id, [], None)
             return (
-                "Okay, cancelled. Let me know if you'd like to change your order.",
+                "Okay, cancelled — your cart has been cleared. Let me know if you'd like to start a new order.",
                 _ui_state(session_id),
                 None,
                 None,
