@@ -19,3 +19,4 @@ class ChatResponse(BaseModel):
     reply_text: str
     ui_state: dict[str, Any]
     pending_confirmation: Optional[PendingConfirmation] = None
+    payment_link: Optional[str] = None

@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     session_id TEXT PRIMARY KEY,
     cart_json TEXT NOT NULL DEFAULT '[]',
     pending_confirmation_json TEXT,
+    messages_json TEXT NOT NULL DEFAULT '[]',
     updated_at TEXT NOT NULL
 );
 
@@ -72,6 +73,14 @@ def get_conn():
 def init_db():
     with get_conn() as conn:
         conn.executescript(SCHEMA)
+    # Safe migration for existing databases that predate the messages_json column
+    with get_conn() as conn:
+        try:
+            conn.execute(
+                "ALTER TABLE sessions ADD COLUMN messages_json TEXT NOT NULL DEFAULT '[]'"
+            )
+        except Exception:
+            pass  # Column already present
 
 
 def redact(value):
@@ -129,21 +138,25 @@ def get_session(session_id):
             "SELECT * FROM sessions WHERE session_id = ?", (session_id,)
         ).fetchone()
         if row:
+            keys = row.keys()
             return {
                 "session_id": row["session_id"],
                 "cart": json.loads(row["cart_json"]),
                 "pending_confirmation": json.loads(row["pending_confirmation_json"])
                 if row["pending_confirmation_json"]
                 else None,
+                "messages": json.loads(row["messages_json"])
+                if "messages_json" in keys and row["messages_json"]
+                else [],
             }
-    return {"session_id": session_id, "cart": [], "pending_confirmation": None}
+    return {"session_id": session_id, "cart": [], "pending_confirmation": None, "messages": []}
 
 
 def save_session(session_id, cart, pending_confirmation):
     with get_conn() as conn:
         conn.execute(
-            """INSERT INTO sessions (session_id, cart_json, pending_confirmation_json, updated_at)
-               VALUES (?, ?, ?, ?)
+            """INSERT INTO sessions (session_id, cart_json, pending_confirmation_json, messages_json, updated_at)
+               VALUES (?, ?, ?, '[]', ?)
                ON CONFLICT(session_id) DO UPDATE SET
                  cart_json=excluded.cart_json,
                  pending_confirmation_json=excluded.pending_confirmation_json,
@@ -154,6 +167,30 @@ def save_session(session_id, cart, pending_confirmation):
                 json.dumps(pending_confirmation) if pending_confirmation else None,
                 _now(),
             ),
+        )
+
+
+def get_messages(session_id) -> list:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT messages_json FROM sessions WHERE session_id = ?", (session_id,)
+        ).fetchone()
+        if row:
+            return json.loads(row["messages_json"] or "[]")
+    return []
+
+
+def save_messages(session_id, messages: list):
+    # Keep at most the last 10 messages (5 turns) to avoid token bloat
+    trimmed = messages[-10:]
+    with get_conn() as conn:
+        conn.execute(
+            """INSERT INTO sessions (session_id, cart_json, pending_confirmation_json, messages_json, updated_at)
+               VALUES (?, '[]', NULL, ?, ?)
+               ON CONFLICT(session_id) DO UPDATE SET
+                 messages_json=excluded.messages_json,
+                 updated_at=excluded.updated_at""",
+            (session_id, json.dumps(trimmed), _now()),
         )
 
 
@@ -221,3 +258,12 @@ def get_unnotified_order_for_session(session_id):
             (session_id,),
         ).fetchone()
         return dict(row) if row else None
+
+
+def reset_demo_data():
+    """Wipe all transactional data for a clean demo run. Does not touch catalog."""
+    with get_conn() as conn:
+        conn.execute("DELETE FROM audit_log")
+        conn.execute("DELETE FROM orders")
+        conn.execute("DELETE FROM sessions")
+        conn.execute("DELETE FROM processed_webhook_events")

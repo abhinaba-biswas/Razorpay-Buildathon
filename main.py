@@ -68,7 +68,9 @@ def chat(req: ChatRequest):
         )
 
     try:
-        reply_text, ui_state, pending = orchestrator.handle_turn(req.session_id, req.message)
+        reply_text, ui_state, pending, payment_link = orchestrator.handle_turn(
+            req.session_id, req.message
+        )
     except Exception:
         db.log_action(
             req.session_id,
@@ -79,7 +81,50 @@ def chat(req: ChatRequest):
         )
         raise HTTPException(status_code=500, detail="Something went wrong processing that message.")
 
-    return ChatResponse(reply_text=reply_text, ui_state=ui_state, pending_confirmation=pending)
+    return ChatResponse(
+        reply_text=reply_text,
+        ui_state=ui_state,
+        pending_confirmation=pending,
+        payment_link=payment_link,
+    )
+
+
+@app.get("/notifications/{session_id}")
+def get_notifications(session_id: str):
+    """
+    Poll for asynchronous payment status updates (from Razorpay webhooks).
+    Returns the notification and marks it as delivered so it doesn't repeat.
+    The frontend polls this every few seconds.
+    """
+    unnotified = db.get_unnotified_order_for_session(session_id)
+    if not unnotified:
+        return {"notification": None}
+
+    db.update_order(unnotified["order_id"], status_notified=1)
+
+    if unnotified["status"] == "paid":
+        # Clear cart and conversation history — the transaction is complete
+        db.save_session(session_id, [], None)
+        db.save_messages(session_id, [])
+        return {
+            "notification": {
+                "type": "payment_success",
+                "order_id": unnotified["order_id"],
+                "total_inr": unnotified["total_inr"],
+            }
+        }
+
+    if unnotified["status"] == "failed":
+        return {
+            "notification": {
+                "type": "payment_failed",
+                "order_id": unnotified["order_id"],
+                "total_inr": unnotified["total_inr"],
+                "reason": unnotified["failure_reason"] or "the payment was declined",
+            }
+        }
+
+    return {"notification": None}
 
 
 @app.post("/webhook/razorpay")
@@ -180,9 +225,23 @@ def get_audit(format: str = "json"):
             f"<td>{r['reasoning']}</td><td>{r['outcome']}</td></tr>"
             for r in rows
         )
-        html = f"<table border='1'><tr><th>Time</th><th>Action</th><th>Reasoning</th><th>Outcome</th></tr>{table_rows}</table>"
+        html = (
+            "<table border='1'><tr><th>Time</th><th>Action</th>"
+            f"<th>Reasoning</th><th>Outcome</th></tr>{table_rows}</table>"
+        )
         return HTMLResponse(html)
     return JSONResponse(rows)
+
+
+@app.post("/demo/reset")
+def demo_reset():
+    """
+    Wipe all orders, sessions, and audit rows for a clean demo run.
+    Call this immediately before presenting — keeps the audit trail tidy.
+    """
+    db.reset_demo_data()
+    _rate_limit_hits.clear()
+    return {"status": "ok", "message": "All demo data cleared. Refresh the chat page to start fresh."}
 
 
 @app.get("/")
