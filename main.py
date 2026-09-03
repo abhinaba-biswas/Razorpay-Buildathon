@@ -1,6 +1,7 @@
 import json
 import os
 import time
+import traceback
 from collections import defaultdict
 from pathlib import Path
 
@@ -71,12 +72,17 @@ def chat(req: ChatRequest):
         reply_text, ui_state, pending, payment_link = orchestrator.handle_turn(
             req.session_id, req.message
         )
-    except Exception:
+    except Exception as exc:
+        # Surface the real exception type/message in the audit trail and server log.
+        # Without this the trail only ever said "unhandled error", which hides
+        # config problems (bad/missing API key, rate limits) behind a generic row.
+        detail = f"{type(exc).__name__}: {exc}"
+        traceback.print_exc()
         db.log_action(
             req.session_id,
             "chat_turn",
             inputs={"message": req.message},
-            reasoning="Unhandled error during agent turn.",
+            reasoning=f"Unhandled error during agent turn — {detail}",
             outcome="failed",
         )
         raise HTTPException(status_code=500, detail="Something went wrong processing that message.")

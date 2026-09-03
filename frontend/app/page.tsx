@@ -68,10 +68,10 @@ export default function Home() {
 
         if (!res.ok) {
           const d = await res.json().catch(() => ({}));
-          setMessages((p) => [
-            ...p,
-            { id: uid(), kind: 'failure', reason: d?.detail || 'Server error.', order_id: '' },
-          ]);
+          const msg = res.status === 429
+            ? 'Too many messages — please slow down.'
+            : d?.detail || 'Something went wrong on my end. Please try again.';
+          setMessages((p) => [...p, { id: uid(), kind: 'agent', text: msg }]);
           return;
         }
 

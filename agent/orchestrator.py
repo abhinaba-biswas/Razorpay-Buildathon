@@ -21,8 +21,12 @@ def _get_llm():
     global _llm_client
     if _llm_client is None:
         _llm_client = OpenAI(
-            base_url="https://integrate.api.nvidia.com/v1",
-            api_key=os.environ["NVIDIA_API_KEY"],
+            base_url="https://openrouter.ai/api/v1",
+            api_key=os.environ["OPENROUTER_API_KEY"],
+            default_headers={
+                "HTTP-Referer": "https://nimbgear.demo",
+                "X-Title": "Nimbus Gear Checkout Agent",
+            },
         )
     return _llm_client
 
@@ -243,7 +247,7 @@ def handle_turn(session_id, message):
         )
 
     llm = _get_llm()
-    model = os.environ.get("NVIDIA_MODEL", "meta/llama-3.1-70b-instruct")
+    model = os.environ.get("OPENROUTER_MODEL", "openai/gpt-4o-mini")
 
     history = db.get_messages(session_id)
     messages = [
