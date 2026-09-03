@@ -7,6 +7,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 
 load_dotenv()
@@ -18,6 +19,14 @@ from models import ChatRequest, ChatResponse
 from tools import razorpay_tools
 
 app = FastAPI(title="Nimbus Gear Checkout Agent", debug=False)
+
+_FRONTEND_ORIGIN = os.environ.get("FRONTEND_ORIGIN", "")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[_FRONTEND_ORIGIN] if _FRONTEND_ORIGIN else ["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type"],
+)
 
 CATALOG_PATH = Path(__file__).parent / "data" / "catalog.json"
 STATIC_DIR = Path(__file__).parent / "static"

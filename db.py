@@ -51,6 +51,12 @@ CREATE TABLE IF NOT EXISTS processed_webhook_events (
     event_key TEXT PRIMARY KEY,
     processed_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS messages (
+    session_id TEXT PRIMARY KEY,
+    history_json TEXT NOT NULL DEFAULT '[]',
+    updated_at TEXT NOT NULL
+);
 """
 
 
@@ -260,10 +266,31 @@ def get_unnotified_order_for_session(session_id):
         return dict(row) if row else None
 
 
+def get_messages(session_id: str) -> list:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT history_json FROM messages WHERE session_id = ?", (session_id,)
+        ).fetchone()
+        return json.loads(row["history_json"]) if row else []
+
+
+def save_messages(session_id: str, history: list) -> None:
+    with get_conn() as conn:
+        conn.execute(
+            """INSERT INTO messages (session_id, history_json, updated_at)
+               VALUES (?, ?, ?)
+               ON CONFLICT(session_id) DO UPDATE SET
+                 history_json=excluded.history_json,
+                 updated_at=excluded.updated_at""",
+            (session_id, json.dumps(history), _now()),
+        )
+
+
 def reset_demo_data():
     """Wipe all transactional data for a clean demo run. Does not touch catalog."""
     with get_conn() as conn:
         conn.execute("DELETE FROM audit_log")
         conn.execute("DELETE FROM orders")
         conn.execute("DELETE FROM sessions")
+        conn.execute("DELETE FROM messages")
         conn.execute("DELETE FROM processed_webhook_events")
