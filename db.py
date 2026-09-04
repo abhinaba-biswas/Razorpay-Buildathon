@@ -101,6 +101,15 @@ def redact(value):
     return value
 
 
+def audit_safe_inputs(inputs):
+    """Keep audit data explainable without persisting free-form buyer content."""
+    safe = redact(inputs or {})
+    if isinstance(safe, dict) and "message" in safe:
+        message = safe.pop("message")
+        safe["message_length"] = len(message) if isinstance(message, str) else None
+    return safe
+
+
 def log_action(
     session_id,
     action,
@@ -110,7 +119,7 @@ def log_action(
     razorpay_response_summary="",
     outcome="success",
 ):
-    redacted_inputs = json.dumps(redact(inputs or {}))
+    redacted_inputs = json.dumps(audit_safe_inputs(inputs))
     with get_conn() as conn:
         conn.execute(
             """INSERT INTO audit_log
@@ -130,11 +139,15 @@ def log_action(
         )
 
 
-def get_audit_log(limit=200):
+def get_audit_log(limit=200, include_sensitive=False):
     with get_conn() as conn:
-        rows = conn.execute(
-            "SELECT * FROM audit_log ORDER BY id DESC LIMIT ?", (limit,)
-        ).fetchall()
+        columns = (
+            "id, timestamp, session_id, action, inputs_redacted, reasoning, "
+            "bound_check_result, razorpay_response_summary, outcome"
+            if include_sensitive
+            else "id, timestamp, action, reasoning, bound_check_result, outcome"
+        )
+        rows = conn.execute(f"SELECT {columns} FROM audit_log ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
         return [dict(r) for r in rows]
 
 

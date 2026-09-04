@@ -2,7 +2,7 @@
 
 **See also:** `PRD.md` (what it's for), `architecture.md` (what backs it).
 
-Scope: a single-page app, no framework, no build step. Two panels visible at once — this is deliberate, since the audit trail needs to be a first-class, always-visible screen for judges, not a hidden debug view.
+Scope: a single-page Next.js app. Two panels visible at once — this is deliberate, since the audit trail needs to be a first-class, always-visible screen for judges, not a hidden debug view.
 
 ---
 

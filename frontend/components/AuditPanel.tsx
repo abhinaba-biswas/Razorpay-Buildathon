@@ -5,7 +5,6 @@ import type { AuditRow } from '@/types';
 
 interface Props {
   rows: AuditRow[];
-  onReset: () => void;
 }
 
 function outcomeConfig(outcome: string) {
@@ -108,7 +107,7 @@ function LiveDot() {
   );
 }
 
-export default function AuditPanel({ rows, onReset }: Props) {
+export default function AuditPanel({ rows }: Props) {
   return (
     <div className="flex flex-col h-full min-w-0 glass">
       {/* Header */}
@@ -122,15 +121,6 @@ export default function AuditPanel({ rows, onReset }: Props) {
             Read-only · live
           </div>
         </div>
-        <button
-          onClick={onReset}
-          className="text-[10px] font-semibold tracking-wider uppercase px-2.5 py-1.5 rounded-lg
-            border border-fail/20 text-fail/50
-            hover:border-fail/60 hover:text-fail hover:bg-fail/5
-            transition-all"
-        >
-          Reset
-        </button>
       </div>
 
       {/* Rows */}
@@ -143,7 +133,7 @@ export default function AuditPanel({ rows, onReset }: Props) {
               </svg>
             </div>
             <p className="text-[12px] text-muted">No actions yet</p>
-            <p className="text-[11px] text-muted/50 mt-0.5">Start chatting to see the log</p>
+            <p className="text-[11px] text-muted/50 mt-0.5">Checkout actions will appear here</p>
           </div>
         ) : (
           rows.map((r) => <AuditRowItem key={r.id} row={r} />)

@@ -2,34 +2,42 @@ import json
 import os
 import time
 import traceback
+from hmac import compare_digest
 from collections import defaultdict
 from pathlib import Path
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
+from pydantic import ValidationError
 
 load_dotenv()
 
 import db
 from agent import orchestrator
 from agent import policy as policy_module
-from models import ChatRequest, ChatResponse
+from models import ChatRequest, ChatResponse, RazorpayWebhook
 from tools import razorpay_tools
 
 app = FastAPI(title="Nimbus Gear Checkout Agent", debug=False)
 
-_FRONTEND_ORIGIN = os.environ.get("FRONTEND_ORIGIN", "")
+_APP_ENV = os.environ.get("APP_ENV", "development").lower()
+_FRONTEND_ORIGIN = os.environ.get("FRONTEND_ORIGIN", "").rstrip("/")
+_FRONTEND_PUBLIC_URL = os.environ.get("FRONTEND_PUBLIC_URL", "").rstrip("/")
+if _APP_ENV == "production" and (not _FRONTEND_ORIGIN or not _FRONTEND_PUBLIC_URL):
+    raise RuntimeError("FRONTEND_ORIGIN and FRONTEND_PUBLIC_URL must be set when APP_ENV=production")
+
+_ALLOWED_ORIGINS = [_FRONTEND_ORIGIN] if _FRONTEND_ORIGIN else ["http://localhost:3000"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[_FRONTEND_ORIGIN] if _FRONTEND_ORIGIN else ["*"],
+    allow_origins=_ALLOWED_ORIGINS,
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type"],
+    allow_credentials=False,
 )
 
 CATALOG_PATH = Path(__file__).parent / "data" / "catalog.json"
-STATIC_DIR = Path(__file__).parent / "static"
 
 db.init_db()
 
@@ -38,9 +46,9 @@ _RATE_LIMIT_MAX_REQUESTS = 20
 _rate_limit_hits = defaultdict(list)
 
 
-def _check_rate_limit(session_id: str) -> bool:
+def _check_rate_limit(client_key: str) -> bool:
     now = time.time()
-    hits = _rate_limit_hits[session_id]
+    hits = _rate_limit_hits[client_key]
     hits[:] = [t for t in hits if now - t < _RATE_LIMIT_WINDOW_SECONDS]
     if len(hits) >= _RATE_LIMIT_MAX_REQUESTS:
         return False
@@ -55,15 +63,30 @@ def get_catalog():
 
 
 @app.post("/chat", response_model=ChatResponse)
-def chat(req: ChatRequest):
-    if not _check_rate_limit(req.session_id):
+def chat(req: ChatRequest, request: Request):
+    client_host = request.client.host if request.client else "unknown"
+    if not _check_rate_limit(f"{client_host}:{req.session_id}"):
         raise HTTPException(status_code=429, detail="Too many messages — please slow down.")
+
+    if policy_module.contains_sensitive_message_data(req.message):
+        db.log_action(
+            req.session_id,
+            "chat_turn",
+            inputs={"message_length": len(req.message)},
+            reasoning="Rejected message containing credentials, payment data, or personal contact information.",
+            bound_check_result="rejected: sensitive data is not accepted in chat",
+            outcome="rejected",
+        )
+        raise HTTPException(
+            status_code=400,
+            detail="For your safety, do not send credentials, card details, or contact information in chat.",
+        )
 
     if db.count_orders_for_session(req.session_id) >= policy_module.MAX_ORDERS_PER_SESSION:
         db.log_action(
             req.session_id,
             "chat_turn",
-            inputs={"message": req.message},
+            inputs={"message_length": len(req.message)},
             reasoning="Session order cap reached.",
             bound_check_result=f"rejected: max {policy_module.MAX_ORDERS_PER_SESSION} orders per session",
             outcome="rejected",
@@ -82,16 +105,14 @@ def chat(req: ChatRequest):
             req.session_id, req.message
         )
     except Exception as exc:
-        # Surface the real exception type/message in the audit trail and server log.
-        # Without this the trail only ever said "unhandled error", which hides
-        # config problems (bad/missing API key, rate limits) behind a generic row.
-        detail = f"{type(exc).__name__}: {exc}"
+        # Keep diagnostics in server logs, not in the user-visible audit trail.
+        # Provider exceptions can include request data and are not safe audit content.
         traceback.print_exc()
         db.log_action(
             req.session_id,
             "chat_turn",
-            inputs={"message": req.message},
-            reasoning=f"Unhandled error during agent turn — {detail}",
+            inputs={"message_length": len(req.message)},
+            reasoning="Agent turn failed safely. Full diagnostic is available only in server logs.",
             outcome="failed",
         )
         raise HTTPException(status_code=500, detail="Something went wrong processing that message.")
@@ -161,28 +182,44 @@ async def razorpay_webhook(request: Request):
         )
         raise HTTPException(status_code=400, detail="Invalid signature")
 
-    payload = json.loads(body)
-    event = payload.get("event", "")
+    try:
+        payload = RazorpayWebhook.model_validate_json(body)
+    except ValidationError:
+        db.log_action(
+            None,
+            "webhook_received",
+            inputs={"payload_bytes": len(body)},
+            reasoning="Verified webhook signature but the payload did not match the expected Razorpay event shape.",
+            bound_check_result="rejected: malformed webhook payload",
+            outcome="rejected",
+        )
+        raise HTTPException(status_code=400, detail="Malformed webhook payload")
+
+    event = payload.event
 
     if event == "payment_link.paid":
-        entity = payload["payload"]["payment_link"]["entity"]
-        payment_entity = payload["payload"]["payment"]["entity"]
-        order_id = entity.get("reference_id")
-        event_key = f"payment:{payment_entity['id']}"
+        payment_link = payload.payload.payment_link
+        payment = payload.payload.payment
+        if not payment_link or not payment or not payment.entity.id:
+            _reject_malformed_webhook(event)
+        order_id = payment_link.entity.reference_id
+        event_key = f"payment:{payment.entity.id}"
         _apply_webhook_update(
-            order_id, event_key, status="paid", razorpay_payment_id=payment_entity["id"]
+            order_id, event_key, status="paid", razorpay_payment_id=payment.entity.id
         )
 
     elif event == "payment.failed":
-        payment_entity = payload["payload"]["payment"]["entity"]
-        order_id = (payment_entity.get("notes") or {}).get("internal_order_id")
-        event_key = f"payment:{payment_entity['id']}"
+        payment = payload.payload.payment
+        if not payment or not payment.entity.id:
+            _reject_malformed_webhook(event)
+        order_id = payment.entity.notes.get("internal_order_id")
+        event_key = f"payment:{payment.entity.id}"
         _apply_webhook_update(
             order_id,
             event_key,
             status="failed",
-            razorpay_payment_id=payment_entity["id"],
-            failure_reason=payment_entity.get("error_description") or "the payment was declined",
+            razorpay_payment_id=payment.entity.id,
+            failure_reason=payment.entity.error_description or "the payment was declined",
         )
 
     else:
@@ -197,8 +234,21 @@ async def razorpay_webhook(request: Request):
     return {"status": "ok"}
 
 
+def _reject_malformed_webhook(event: str):
+    db.log_action(
+        None,
+        "webhook_received",
+        inputs={"event": event},
+        reasoning="Verified webhook signature but required event data was missing.",
+        bound_check_result="rejected: malformed webhook payload",
+        outcome="rejected",
+    )
+    raise HTTPException(status_code=400, detail="Malformed webhook payload")
+
+
 def _apply_webhook_update(order_id, event_key, **fields):
-    if not order_id or not db.get_order(order_id):
+    order = db.get_order(order_id) if order_id else None
+    if not order:
         db.log_action(
             None,
             "webhook_received",
@@ -211,7 +261,7 @@ def _apply_webhook_update(order_id, event_key, **fields):
 
     if db.is_event_processed(event_key):
         db.log_action(
-            order_id,
+            order["session_id"],
             "webhook_received",
             inputs={"event_key": event_key},
             reasoning="Duplicate webhook delivery for an already-processed event; ignored (idempotent).",
@@ -219,10 +269,22 @@ def _apply_webhook_update(order_id, event_key, **fields):
         )
         return
 
+    if order["status"] == "paid":
+        db.mark_event_processed(event_key)
+        db.log_action(
+            order["session_id"],
+            "webhook_received",
+            inputs={"event_key": event_key, "attempted_status": fields.get("status")},
+            reasoning="Ignored a later webhook because the order was already paid.",
+            bound_check_result="rejected: paid is a terminal order state",
+            outcome="rejected",
+        )
+        return
+
     db.update_order(order_id, status_notified=0, **fields)
     db.mark_event_processed(event_key)
     db.log_action(
-        order_id,
+        order["session_id"],
         "webhook_received",
         inputs={"event_key": event_key, **fields},
         reasoning="Verified webhook applied to order.",
@@ -233,32 +295,39 @@ def _apply_webhook_update(order_id, event_key, **fields):
 
 @app.get("/audit")
 def get_audit(format: str = "json"):
-    rows = db.get_audit_log()
-    if format == "html":
-        table_rows = "".join(
-            f"<tr><td>{r['timestamp']}</td><td>{r['action']}</td>"
-            f"<td>{r['reasoning']}</td><td>{r['outcome']}</td></tr>"
-            for r in rows
-        )
-        html = (
-            "<table border='1'><tr><th>Time</th><th>Action</th>"
-            f"<th>Reasoning</th><th>Outcome</th></tr>{table_rows}</table>"
-        )
-        return HTMLResponse(html)
-    return JSONResponse(rows)
+    if format != "json":
+        raise HTTPException(status_code=406, detail="Only the safe JSON audit representation is available")
+    return JSONResponse(db.get_audit_log())
 
 
 @app.post("/demo/reset")
-def demo_reset():
+def demo_reset(request: Request):
     """
     Wipe all orders, sessions, and audit rows for a clean demo run.
     Call this immediately before presenting — keeps the audit trail tidy.
     """
+    reset_token = os.environ.get("DEMO_RESET_TOKEN")
+    supplied_token = request.headers.get("X-Demo-Reset-Token", "")
+    if not reset_token or not compare_digest(supplied_token, reset_token):
+        # Do not reveal whether the endpoint is enabled or the token exists.
+        raise HTTPException(status_code=404, detail="Not found")
+
     db.reset_demo_data()
     _rate_limit_hits.clear()
     return {"status": "ok", "message": "All demo data cleared. Refresh the chat page to start fresh."}
 
 
-@app.get("/")
+@app.get("/", include_in_schema=False)
 def index():
-    return FileResponse(STATIC_DIR / "chat.html")
+    """Keep FastAPI an API/webhook service; the Next.js app owns browser UI."""
+    if _FRONTEND_PUBLIC_URL:
+        return RedirectResponse(_FRONTEND_PUBLIC_URL + "/")
+    return JSONResponse(
+        {
+            "service": "Nimbus Gear Checkout API",
+            "frontend": "http://localhost:3000",
+            "catalog": "/catalog",
+            "audit": "/audit",
+            "docs": "/docs",
+        }
+    )

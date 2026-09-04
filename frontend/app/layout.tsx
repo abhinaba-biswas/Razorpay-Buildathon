@@ -1,21 +1,5 @@
 import type { Metadata } from 'next';
-import { Inter, Space_Grotesk } from 'next/font/google';
 import './globals.css';
-
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-inter',
-  display: 'swap',
-});
-
-/* Stand-in for Tasa Orbiter Display (not publicly licensed) —
-   geometric, technical, closest match for Razorpay's display face. */
-const spaceGrotesk = Space_Grotesk({
-  subsets: ['latin'],
-  variable: '--font-display',
-  weight: ['500', '600', '700'],
-  display: 'swap',
-});
 
 export const metadata: Metadata = {
   title: 'Nimbus Gear — Checkout Agent',
@@ -39,7 +23,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
-      <body className={`${inter.variable} ${spaceGrotesk.variable} font-sans h-screen overflow-hidden`}>
+      <body className="font-sans h-screen overflow-hidden">
         {children}
       </body>
     </html>

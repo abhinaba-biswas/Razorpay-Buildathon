@@ -56,15 +56,26 @@ def create_order(session_id, items):
     order_id = _new_order_id()
     requires_confirmation = policy.requires_confirmation(total_inr)
 
-    client = _get_client()
-    rzp_order = client.order.create(
-        {
-            "amount": total_inr * 100,
-            "currency": "INR",
-            "receipt": order_id,
-            "notes": {"internal_order_id": order_id},
-        }
-    )
+    try:
+        client = _get_client()
+        rzp_order = client.order.create(
+            {
+                "amount": total_inr * 100,
+                "currency": "INR",
+                "receipt": order_id,
+                "notes": {"internal_order_id": order_id},
+            }
+        )
+    except Exception:
+        db.log_action(
+            session_id,
+            "create_order",
+            inputs={"items": items},
+            reasoning="Validated cart, but Razorpay rejected or could not complete the order request.",
+            bound_check_result="within bounds",
+            outcome="failed",
+        )
+        return {"ok": False, "error": "Could not create the Razorpay order. Please try again."}
 
     db.create_order_row(order_id, session_id, resolved_items, total_inr)
     db.update_order(order_id, razorpay_order_id=rzp_order["id"])
@@ -91,7 +102,27 @@ def create_order(session_id, items):
 def apply_discount(session_id, order_id, pct):
     order = db.get_order(order_id)
     if not order or order["session_id"] != session_id:
+        db.log_action(
+            session_id,
+            "apply_discount",
+            inputs={"order_id": order_id, "pct": pct},
+            reasoning="Attempted to apply a discount to an order outside this session.",
+            bound_check_result="rejected: order not found",
+            outcome="rejected",
+        )
         return {"ok": False, "error": "Order not found"}
+
+    if order["status"] != "created" or order["razorpay_payment_link_id"]:
+        error = "Discounts can only be applied before a payment link is created"
+        db.log_action(
+            session_id,
+            "apply_discount",
+            inputs={"order_id": order_id, "pct": pct},
+            reasoning="Attempted to change an order after checkout had started.",
+            bound_check_result=f"rejected: {error}",
+            outcome="rejected",
+        )
+        return {"ok": False, "error": error}
 
     ok, error = policy.check_discount(pct, order["total_inr"])
     if not ok:
@@ -107,6 +138,17 @@ def apply_discount(session_id, order_id, pct):
 
     base_total = sum(i["line_total_inr"] for i in json.loads(order["items_json"]))
     new_total = round(base_total * (100 - pct) / 100)
+    if new_total <= 0 or new_total > policy.MAX_ORDER_INR:
+        error = f"Discounted total ₹{new_total} is outside the allowed order range"
+        db.log_action(
+            session_id,
+            "apply_discount",
+            inputs={"order_id": order_id, "pct": pct},
+            reasoning="Calculated discounted total before changing the order.",
+            bound_check_result=f"rejected: {error}",
+            outcome="rejected",
+        )
+        return {"ok": False, "error": error}
 
     db.update_order(order_id, discount_pct=pct, total_inr=new_total)
     db.log_action(
@@ -149,8 +191,14 @@ def create_payment_link(session_id, order_id):
             "short_url": order["razorpay_payment_link_url"] or "",
         }
 
-    if policy.requires_confirmation(order["total_inr"]) and not order["confirmed"]:
-        error = f"Order total ₹{order['total_inr']} is at/above the ₹{policy.GATE_THRESHOLD_INR} gate and has not been confirmed"
+    items = json.loads(order["items_json"])
+    original_cart_total = sum(item["line_total_inr"] for item in items)
+    requires_confirmation = policy.requires_confirmation(original_cart_total)
+    if requires_confirmation and not order["confirmed"]:
+        error = (
+            f"Order was created at ₹{original_cart_total}, at/above the ₹{policy.GATE_THRESHOLD_INR} "
+            "confirmation gate, and has not been confirmed"
+        )
         db.log_action(
             session_id,
             "create_payment_link",
@@ -161,20 +209,29 @@ def create_payment_link(session_id, order_id):
         )
         return {"ok": False, "error": error, "requires_confirmation": True}
 
-    client = _get_client()
-    items = json.loads(order["items_json"])
     description = ", ".join(f"{i['name']} x{i['qty']}" for i in items)[:2048]
-
-    link = client.payment_link.create(
-        {
-            "amount": order["total_inr"] * 100,
-            "currency": "INR",
-            "reference_id": order_id,
-            "description": description or f"Order {order_id}",
-            "notes": {"internal_order_id": order_id},
-            "notify": {"sms": False, "email": False},
-        }
-    )
+    try:
+        client = _get_client()
+        link = client.payment_link.create(
+            {
+                "amount": order["total_inr"] * 100,
+                "currency": "INR",
+                "reference_id": order_id,
+                "description": description or f"Order {order_id}",
+                "notes": {"internal_order_id": order_id},
+                "notify": {"sms": False, "email": False},
+            }
+        )
+    except Exception:
+        db.log_action(
+            session_id,
+            "create_payment_link",
+            inputs={"order_id": order_id},
+            reasoning="Order was eligible, but Razorpay rejected or could not complete the payment-link request.",
+            bound_check_result="within bounds",
+            outcome="failed",
+        )
+        return {"ok": False, "error": "Could not create the Razorpay payment link. Please try again."}
 
     db.update_order(
         order_id,
@@ -187,7 +244,10 @@ def create_payment_link(session_id, order_id):
         session_id,
         "create_payment_link",
         inputs={"order_id": order_id},
-        reasoning=f"Order total ₹{order['total_inr']} is {'gated and confirmed' if order['confirmed'] else 'below the gate'}; creating payment link.",
+        reasoning=(
+            f"Order total ₹{order['total_inr']} is "
+            f"{'gated and confirmed' if requires_confirmation else 'below the gate'}; creating payment link."
+        ),
         bound_check_result="within bounds",
         razorpay_response_summary=f"payment_link {link['id']} status={link['status']}",
         outcome="success",

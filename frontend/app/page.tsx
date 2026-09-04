@@ -7,7 +7,12 @@ import type { AuditRow, ChatMessage, UiState } from '@/types';
 
 let _seq = 0;
 const uid = () => String(++_seq);
-const genSid = () => 'sess_' + Math.random().toString(36).slice(2, 10);
+const genSid = () => {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `sess_${crypto.randomUUID().replaceAll('-', '')}`;
+  }
+  return `sess_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
+};
 
 export default function Home() {
   /* ── Theme ───────────────────────────────────────────────────── */
@@ -136,17 +141,6 @@ export default function Home() {
     return () => clearInterval(id);
   }, []);
 
-  /* ── Reset ───────────────────────────────────────────────────── */
-  const handleReset = useCallback(async () => {
-    if (!confirm('Reset all demo data? This clears orders, sessions, and audit logs.')) return;
-    try {
-      await fetch('/api/demo/reset', { method: 'POST' });
-      window.location.reload();
-    } catch {
-      alert('Reset failed — check the server.');
-    }
-  }, []);
-
   return (
     <div className="relative flex flex-col md:flex-row h-screen overflow-hidden bg-bg">
 
@@ -182,7 +176,7 @@ export default function Home() {
 
       {/* ── Audit panel — 35% ── */}
       <div className="flex flex-col flex-1 md:flex-[35] min-w-0 border-t md:border-t-0 md:border-l border-border">
-        <AuditPanel rows={auditRows} onReset={handleReset} />
+        <AuditPanel rows={auditRows} />
       </div>
     </div>
   );

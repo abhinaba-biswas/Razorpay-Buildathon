@@ -10,7 +10,7 @@
 - **Storage:** SQLite (audit log + orders/session state) — no external DB needed for this scope
 - **LLM:** any provider with tool/function-calling support (key in `.env`)
 - **Payments:** Razorpay test-mode APIs — Orders API, Payment Links, Webhooks
-- **Frontend:** single static HTML page + vanilla JS (no framework/build step)
+- **Frontend:** Next.js 15 App Router + TypeScript/Tailwind — the only browser UI; it proxies same-origin `/api/*` requests to FastAPI with a server-side rewrite
 
 ---
 
@@ -18,9 +18,12 @@
 
 ```
 Buyer (browser)
-   │  chat messages
+   │  same-origin /api/* requests
    ▼
-FastAPI app
+Next.js frontend
+   │  server-side rewrite to BACKEND_URL
+   ▼
+FastAPI app (API and webhook boundary)
  ├── GET  /catalog          → serves catalog.json (agent-readable)
  ├── POST /chat              → agent turn: user msg in, agent reply + ui_state out
  ├── POST /webhook/razorpay  → payment status callback (signature verified)
@@ -38,8 +41,10 @@ FastAPI app
  │    ├── catalog.json         → static product data
  │    └── audit.db (SQLite)    → append-only action log + order/session state
  │
- └── static/chat.html          → chat UI + audit trail panel
+   └── frontend/                 → Next.js chat UI + audit trail panel
 ```
+
+Razorpay sends `POST /webhook/razorpay` directly to the public FastAPI URL. It is deliberately not routed through the browser-facing `/api/*` proxy.
 
 **Core architectural rule:** the LLM never calls Razorpay or touches the network directly. It can only request one of a fixed set of named Python tool functions. Every request is validated against `policy.py` bounds *before* execution — this is the primary security control (detailed in `rules.md §Containment`).
 
@@ -119,7 +124,7 @@ Verifies Razorpay HMAC signature before any processing. Rejects invalid signatur
 Idempotent on Razorpay event/payment id — replays don't double-apply state.
 
 ### `GET /audit`
-Read-only HTML/JSON view of the SQLite audit log, in near real time for demo purposes.
+Read-only, safe JSON view of the SQLite audit log, in near real time for demo purposes. It intentionally excludes raw inputs, session identifiers, and Razorpay response identifiers.
 
 ---
 

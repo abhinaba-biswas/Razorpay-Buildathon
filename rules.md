@@ -39,7 +39,7 @@ These are hard rules, not guidelines. If a build decision conflicts with somethi
 ## 6. Data Handling
 
 - **RULE:** No cardholder data ever touches this application. Card capture happens exclusively on Razorpay's hosted, PCI-compliant surface (Payment Links/Pages). PCI scope for this app stays at zero.
-- **RULE:** Before any audit log write, redact fields matching secret/token/key patterns.
+- **RULE:** Before any audit log write, redact credential-like fields and never persist raw buyer chat content. The public audit representation excludes raw inputs, session identifiers, and Razorpay response identifiers.
 - **RULE:** Store no customer PII beyond what the demo needs (name, session id); nothing persists beyond the session.
 - **RULE:** `/catalog` never includes internal-only fields (cost price, supplier, margin, stock sourcing).
 
@@ -50,7 +50,7 @@ These are hard rules, not guidelines. If a build decision conflicts with somethi
 
 ## 8. Input Validation
 
-- **RULE:** All `/chat` and `/webhook` inputs are validated against explicit Pydantic models — no unvalidated dict passed downstream.
+- **RULE:** All `/chat` and `/webhook` inputs are validated against explicit Pydantic models — no unvalidated dict passed downstream. Sensitive chat content is rejected before it reaches the LLM or persistent history.
 - **RULE:** Cart/session state is re-validated against `catalog.json` and `policy.py` on every turn, not just at cart creation, to prevent tampering across a multi-turn conversation.
 
 ## 9. Rate Limiting & Abuse Prevention
@@ -62,6 +62,7 @@ These are hard rules, not guidelines. If a build decision conflicts with somethi
 
 - **RULE:** HTTPS only for any public-facing deployment.
 - **RULE:** Debug mode / verbose stack traces disabled in any deployed instance. Users see generic error messages; full detail goes only to server-side logs.
+- **RULE:** `APP_ENV=production` requires an explicit `FRONTEND_ORIGIN`; wildcard CORS is never used. The only destructive demo control is disabled unless a presenter-only token is supplied server-side.
 
 ## 11. Failure Handling
 

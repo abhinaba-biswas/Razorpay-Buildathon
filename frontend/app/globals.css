@@ -6,6 +6,10 @@
 /* Razorpay brand palette
    #305eff electric blue · #192839 navy · #009e5c green · #f8fafc off-white */
 :root {
+  /* Local system stacks keep production builds deterministic and offline-safe. */
+  --font-inter: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: "Avenir Next", "Segoe UI", ui-sans-serif, sans-serif;
+
   /* Light theme — Razorpay's native surface */
   --c-bg:           #f8fafc;
   --c-panel:        rgba(255, 255, 255, 0.85);
@@ -62,7 +66,7 @@ html, body {
   height: 100%;
   margin: 0;
   padding: 0;
-  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--font-inter);
   background: var(--c-bg);
   color: var(--c-text);
   -webkit-font-smoothing: antialiased;
