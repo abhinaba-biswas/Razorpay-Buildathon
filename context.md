@@ -10,7 +10,7 @@ Purpose: a handoff summary of what this chat session did on top of the locked sp
 
 Phases 0–4 of `phases.md` were scaffolded and verified end-to-end against the **live Razorpay test-mode API** (not mocked):
 
-- Full FastAPI skeleton: `main.py`, `db.py`, `models.py`, `agent/policy.py`, `agent/orchestrator.py`, `tools/razorpay_tools.py`, `data/catalog.json` (10-SKU "Nimbus Gear" catalog), and the Next.js UI in `frontend/`.
+- Full FastAPI skeleton: `main.py`, `db.py`, `models.py`, `agent/policy.py`, `agent/orchestrator.py`, `tools/razorpay_tools.py`, `data/catalog.json` (10-SKU "TrustRail" catalog), and the Next.js UI in `frontend/`.
 - LLM provider decided: **NVIDIA API** (build.nvidia.com/NIM, OpenAI-compatible endpoint, `openai` SDK, model `meta/llama-3.1-70b-instruct`).
 - Verified live: `create_order` + `create_payment_link` (ungated and gated), idempotent repeat calls, unknown-SKU rejection, over-₹10,000 rejection, the "ok"/"sure"/"yeah" vs "confirm" adversarial gate test, a correctly-signed `payment.failed` webhook updating an order and surfacing a graceful failure message on the next chat turn, webhook replay idempotency, and 400-rejection of an unsigned webhook.
 - Full details and the confirmed (not memorized) Razorpay API field shapes are logged in `memory.md` §6–7.

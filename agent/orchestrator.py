@@ -25,7 +25,7 @@ def _get_llm():
             api_key=os.environ["OPENROUTER_API_KEY"],
             default_headers={
                 "HTTP-Referer": "https://nimbgear.demo",
-                "X-Title": "Nimbus Gear Checkout Agent",
+                "X-Title": "TrustRail Checkout Agent",
             },
         )
     return _llm_client
@@ -44,7 +44,7 @@ def _load_catalog_text():
 
 _CATALOG_TEXT = _load_catalog_text()
 
-_BASE_SYSTEM_PROMPT = f"""You are the checkout assistant for Nimbus Gear, a small electronics-accessories shop.
+_BASE_SYSTEM_PROMPT = f"""You are the checkout assistant for TrustRail, a small electronics-accessories shop.
 
 Catalog (SKU id: name — price — description):
 {_CATALOG_TEXT}

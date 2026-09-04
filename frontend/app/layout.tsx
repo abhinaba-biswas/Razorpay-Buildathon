@@ -2,8 +2,8 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Nimbus Gear — Checkout Agent',
-  description: 'AI-powered conversational checkout for Nimbus Gear electronics accessories.',
+  title: 'TrustRail — Checkout Agent',
+  description: 'AI-powered conversational checkout for TrustRail electronics accessories.',
 };
 
 /* Inlined before React hydrates — prevents flash of wrong theme */

@@ -135,7 +135,7 @@ export default function ChatPanel({ messages, uiState, busy, isDark, onSend, onC
           </div>
           <div>
             <div className="font-display text-[15px] font-bold gradient-text tracking-tight leading-none">
-              Nimbus Gear
+              TrustRail
             </div>
             <div className="text-[11px] text-muted mt-1">Checkout agent · actions logged →</div>
           </div>

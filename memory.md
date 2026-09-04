@@ -73,6 +73,6 @@ Purpose: a running record of decisions already made, so they don't get accidenta
 | Date | Change |
 |---|---|
 | Initial spec | PRD, architecture, rules, phases, design, memory files created from planning conversation |
-| 2026-08-26 | Phases 0–4 scaffolded: full FastAPI backend (`main.py`, `db.py`, `models.py`), `agent/policy.py` + `agent/orchestrator.py` (NVIDIA API tool-calling loop), `tools/razorpay_tools.py`, `data/catalog.json` (10 SKUs, Nimbus Gear theme), `static/chat.html`. LLM provider decided (NVIDIA). Razorpay API shapes confirmed live — see §6. Gating, bounds, redaction, audit logging, and webhook idempotency all verified end-to-end against the real Razorpay test API. |
+| 2026-08-26 | Phases 0–4 scaffolded: full FastAPI backend (`main.py`, `db.py`, `models.py`), `agent/policy.py` + `agent/orchestrator.py` (NVIDIA API tool-calling loop), `tools/razorpay_tools.py`, `data/catalog.json` (10 SKUs, TrustRail theme), `static/chat.html`. LLM provider decided (NVIDIA). Razorpay API shapes confirmed live — see §6. Gating, bounds, redaction, audit logging, and webhook idempotency all verified end-to-end against the real Razorpay test API. |
 
 *(Add a new row here every time a locked decision changes, rather than editing history silently.)*

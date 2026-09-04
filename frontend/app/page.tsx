@@ -41,7 +41,7 @@ export default function Home() {
     {
       id: uid(),
       kind: 'agent',
-      text: "Hi — I'm the Nimbus Gear checkout assistant.\n\nAsk me what we sell, add items to your cart, and I'll handle the payment. Everything I do is logged in the audit trail on the right.",
+      text: "Hi — I'm the TrustRail checkout assistant.\n\nAsk me what we sell, add items to your cart, and I'll handle the payment. Everything I do is logged in the audit trail on the right.",
     },
   ]);
   const [uiState, setUiState]     = useState<UiState | null>(null);

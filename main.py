@@ -20,7 +20,7 @@ from agent import policy as policy_module
 from models import ChatRequest, ChatResponse, RazorpayWebhook
 from tools import razorpay_tools
 
-app = FastAPI(title="Nimbus Gear Checkout Agent", debug=False)
+app = FastAPI(title="TrustRail Checkout Agent", debug=False)
 
 _APP_ENV = os.environ.get("APP_ENV", "development").lower()
 _FRONTEND_ORIGIN = os.environ.get("FRONTEND_ORIGIN", "").rstrip("/")
@@ -324,7 +324,7 @@ def index():
         return RedirectResponse(_FRONTEND_PUBLIC_URL + "/")
     return JSONResponse(
         {
-            "service": "Nimbus Gear Checkout API",
+            "service": "TrustRail Checkout API",
             "frontend": "http://localhost:3000",
             "catalog": "/catalog",
             "audit": "/audit",

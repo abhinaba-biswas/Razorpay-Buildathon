@@ -1,8 +1,8 @@
-# Nimbus Gear — Safe Conversational Checkout Agent
+# TrustRail — Safe Conversational Checkout Agent
 
 Razorpay AI Buildathon submission for **Track 01: AI Growth & Agentic Commerce**.
 
-Nimbus Gear turns a small merchant catalog into a conversational, agent-readable checkout flow. A buyer can describe what they want; the agent resolves only catalog-backed items, applies deterministic policies, creates a Razorpay **test-mode** payment link, and records a safe audit trail.
+TrustRail turns a small merchant catalog into a conversational, agent-readable checkout flow. A buyer can describe what they want; the agent resolves only catalog-backed items, applies deterministic policies, creates a Razorpay **test-mode** payment link, and records a safe audit trail.
 
 ## Why this is agentic commerce, not just chat
 
