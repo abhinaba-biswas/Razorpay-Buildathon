@@ -232,7 +232,19 @@ def handle_turn(session_id, message):
             )
         normalized = message.strip().lower()
         if normalized in {"cancel", "no", "stop", "no cancel"}:
+            # A cancellation must be terminal for this pending checkout. Keep the
+            # order record for auditability, but remove its ability to continue.
+            db.update_order(order_id, status="cancelled", status_notified=1)
             db.save_session(session_id, [], None)
+            db.save_messages(session_id, [])
+            db.log_action(
+                session_id,
+                "cancel_checkout",
+                inputs={"order_total_inr": pending["total_inr"]},
+                reasoning="Buyer explicitly cancelled before a Razorpay payment link was created.",
+                bound_check_result="cancelled: cart and pending confirmation cleared",
+                outcome="cancelled",
+            )
             return (
                 "Okay, cancelled — your cart has been cleared. Let me know if you'd like to start a new order.",
                 _ui_state(session_id),

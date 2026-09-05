@@ -5,6 +5,8 @@ import type { AuditRow } from '@/types';
 
 interface Props {
   rows: AuditRow[];
+  onClearView: () => void;
+  hasClearedRows: boolean;
 }
 
 function outcomeConfig(outcome: string) {
@@ -13,6 +15,8 @@ function outcomeConfig(outcome: string) {
     return { badge: 'bg-success/10 text-success ring-1 ring-success/20', dot: 'bg-success', glow: 'shadow-[0_0_8px_-2px_var(--c-ok)]' };
   if (o === 'rejected')
     return { badge: 'bg-accent/10 text-accent ring-1 ring-accent/20', dot: 'bg-accent', glow: 'shadow-[0_0_8px_-2px_var(--c-accent)]' };
+  if (o === 'cancelled')
+    return { badge: 'bg-muted/10 text-muted ring-1 ring-muted/20', dot: 'bg-muted', glow: '' };
   return { badge: 'bg-fail/10 text-fail ring-1 ring-fail/20', dot: 'bg-fail', glow: 'shadow-[0_0_8px_-2px_var(--c-err)]' };
 }
 
@@ -23,6 +27,7 @@ const ACTION_LABELS: Record<string, string> = {
   get_order_status:    'Check Order Status',
   chat_turn:           'Agent Turn',
   webhook_received:    'Webhook Received',
+  cancel_checkout:     'Cancel Checkout',
 };
 
 function actionLabel(action: string): string {
@@ -107,7 +112,7 @@ function LiveDot() {
   );
 }
 
-export default function AuditPanel({ rows }: Props) {
+export default function AuditPanel({ rows, onClearView, hasClearedRows }: Props) {
   return (
     <div className="flex flex-col h-full min-w-0 glass">
       {/* Header */}
@@ -121,6 +126,15 @@ export default function AuditPanel({ rows }: Props) {
             Read-only · live
           </div>
         </div>
+        <button
+          type="button"
+          onClick={onClearView}
+          disabled={rows.length === 0}
+          title="Hide the current rows in this browser. Server audit records are retained."
+          className="rounded-lg px-2 py-1 text-[10px] font-semibold text-muted ring-1 ring-border transition-colors hover:bg-panel hover:text-text-main disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Clear view
+        </button>
       </div>
 
       {/* Rows */}
@@ -132,8 +146,12 @@ export default function AuditPanel({ rows }: Props) {
                 <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
               </svg>
             </div>
-            <p className="text-[12px] text-muted">No actions yet</p>
-            <p className="text-[11px] text-muted/50 mt-0.5">Checkout actions will appear here</p>
+            <p className="text-[12px] text-muted">
+              {hasClearedRows ? 'Audit view cleared' : 'No actions yet'}
+            </p>
+            <p className="text-[11px] text-muted/50 mt-0.5">
+              {hasClearedRows ? 'New checkout actions will appear here' : 'Checkout actions will appear here'}
+            </p>
           </div>
         ) : (
           rows.map((r) => <AuditRowItem key={r.id} row={r} />)
