@@ -48,8 +48,7 @@ export default function Home() {
   const [busy, setBusy]           = useState(false);
   const [auditRows, setAuditRows] = useState<AuditRow[]>([]);
   const [auditHiddenThroughId, setAuditHiddenThroughId] = useState(0);
-  const pendingGate               = useRef(false);
-  const auditFingerprint          = useRef('');
+  const lastAuditCount            = useRef(0);
 
   /* ── Send ────────────────────────────────────────────────────── */
   const sendMessage = useCallback(
@@ -91,17 +90,7 @@ export default function Home() {
           const total = data.ui_state?.total_inr ?? data.pending_confirmation?.total_inr ?? 0;
           next.push({ id: uid(), kind: 'pay', url: data.payment_link, total_inr: total });
         }
-        if (data.pending_confirmation) {
-          pendingGate.current = true;
-        } else if (pendingGate.current) {
-          // The server has resolved the gate (by confirm, cancel, or a safe
-          // failure). Remove the obsolete card so it cannot look like an
-          // active cart after the server has already cleared it.
-          pendingGate.current = false;
-          setMessages((p) => [...p.filter((m) => m.kind !== 'gate'), ...next]);
-        } else {
-          setMessages((p) => [...p, ...next]);
-        }
+        setMessages((p) => [...p, ...next]);
         setUiState(data.ui_state ?? null);
       } catch {
         setMessages((p) => [
@@ -121,7 +110,6 @@ export default function Home() {
     setAuditHiddenThroughId(auditRows[0]?.id ?? 0);
   }, [auditRows]);
   const visibleAuditRows = auditRows.filter((row) => row.id > auditHiddenThroughId);
-  const hasClearedAuditRows = visibleAuditRows.length !== auditRows.length;
 
   /* ── Notification polling ─────────────────────────────────────── */
   useEffect(() => {
@@ -147,12 +135,9 @@ export default function Home() {
   useEffect(() => {
     const poll = async () => {
       try {
-        const response = await fetch('/api/audit');
-        if (!response.ok) return;
-        const rows: AuditRow[] = await response.json();
-        const fingerprint = rows.map((row) => row.id).join(':');
-        if (fingerprint === auditFingerprint.current) return;
-        auditFingerprint.current = fingerprint;
+        const rows: AuditRow[] = await fetch('/api/audit').then((r) => r.json());
+        if (rows.length === lastAuditCount.current) return;
+        lastAuditCount.current = rows.length;
         setAuditRows(rows);
       } catch { /* transient */ }
     };
@@ -199,7 +184,7 @@ export default function Home() {
         <AuditPanel
           rows={visibleAuditRows}
           onClearView={clearAuditView}
-          hasClearedRows={hasClearedAuditRows}
+          hasClearedRows={visibleAuditRows.length !== auditRows.length}
         />
       </div>
     </div>

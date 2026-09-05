@@ -15,8 +15,6 @@ function outcomeConfig(outcome: string) {
     return { badge: 'bg-success/10 text-success ring-1 ring-success/20', dot: 'bg-success', glow: 'shadow-[0_0_8px_-2px_var(--c-ok)]' };
   if (o === 'rejected')
     return { badge: 'bg-accent/10 text-accent ring-1 ring-accent/20', dot: 'bg-accent', glow: 'shadow-[0_0_8px_-2px_var(--c-accent)]' };
-  if (o === 'cancelled')
-    return { badge: 'bg-muted/10 text-muted ring-1 ring-muted/20', dot: 'bg-muted', glow: '' };
   return { badge: 'bg-fail/10 text-fail ring-1 ring-fail/20', dot: 'bg-fail', glow: 'shadow-[0_0_8px_-2px_var(--c-err)]' };
 }
 
@@ -27,7 +25,6 @@ const ACTION_LABELS: Record<string, string> = {
   get_order_status:    'Check Order Status',
   chat_turn:           'Agent Turn',
   webhook_received:    'Webhook Received',
-  cancel_checkout:     'Cancel Checkout',
 };
 
 function actionLabel(action: string): string {

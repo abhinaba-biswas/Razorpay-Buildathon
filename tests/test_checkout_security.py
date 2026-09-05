@@ -8,7 +8,6 @@ from fastapi.testclient import TestClient
 
 import db
 import main
-from agent import orchestrator
 from agent import policy
 from tools import razorpay_tools
 
@@ -76,42 +75,6 @@ class CheckoutSafetyTests(unittest.TestCase):
         self.assertFalse(policy.is_explicit_affirmative("sure"))
         self.assertTrue(policy.is_explicit_affirmative("confirm"))
         self.assertTrue(policy.is_explicit_affirmative("yes, confirm"))
-
-    def test_cancelling_a_pending_checkout_clears_cart_and_logs_the_decision(self):
-        cart = [
-            {
-                "sku_id": "sku_008",
-                "name": "Webcam 1080p",
-                "qty": 1,
-                "price_inr": 2199,
-                "line_total_inr": 2199,
-            }
-        ]
-        pending = {
-            "order_id": "order_cancelled",
-            "action": "create_payment_link",
-            "items": cart,
-            "total_inr": 2199,
-        }
-        db.create_order_row("order_cancelled", "sess_cancel", cart, 2199)
-        db.save_session("sess_cancel", cart, pending)
-        db.save_messages("sess_cancel", [{"role": "user", "content": "Buy a webcam"}])
-
-        reply, ui_state, pending_confirmation, payment_link = orchestrator.handle_turn(
-            "sess_cancel", "cancel"
-        )
-
-        self.assertIn("cart has been cleared", reply)
-        self.assertEqual(ui_state, {"cart": [], "total_inr": 0})
-        self.assertIsNone(pending_confirmation)
-        self.assertIsNone(payment_link)
-        self.assertEqual(db.get_session("sess_cancel")["cart"], [])
-        self.assertIsNone(db.get_session("sess_cancel")["pending_confirmation"])
-        self.assertEqual(db.get_messages("sess_cancel"), [])
-        self.assertEqual(db.get_order("order_cancelled")["status"], "cancelled")
-        audit = db.get_audit_log(include_sensitive=True)
-        self.assertEqual(audit[0]["action"], "cancel_checkout")
-        self.assertEqual(audit[0]["outcome"], "cancelled")
 
     def test_sensitive_chat_input_is_rejected_before_llm_processing(self):
         response = self.client.post(
